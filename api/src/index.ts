@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
+dotenv.config({ path: '../.env' }); // Root dagi .env ni o'qiydi
 import productsRouter from './routes/products';
 import categoriesRouter from './routes/categories';
 import cartRouter from './routes/cart';

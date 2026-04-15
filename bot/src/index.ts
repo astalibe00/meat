@@ -37,7 +37,7 @@ bot.command("orders", async (ctx) => {
   if (!isAdmin(ctx)) {
     return ctx.reply("⛔ Ruxsat yo'q");
   }
-  
+
   // Implementation will typically query the Supabase DB
   // For the sake of the bot skeleton, we simulate fetching orders.
   await ctx.reply("Oxirgi buyurtmalar ro'yxati (bu yerda DB dan olinadi)");
@@ -47,7 +47,7 @@ bot.command("accept", async (ctx) => {
   if (!isAdmin(ctx)) {
     return ctx.reply("⛔ Ruxsat yo'q");
   }
-  
+
   const orderId = ctx.match;
   if (!orderId) {
     return ctx.reply("Format: /accept <order_id>");
@@ -86,7 +86,7 @@ bot.command("cancel", async (ctx) => {
 bot.on("callback_query:data", async (ctx) => {
   if (!isAdmin(ctx)) return;
   const data = ctx.callbackQuery.data;
-  
+
   if (data.startsWith("accept:")) {
     const orderId = data.split(":")[1];
     // status update in DB here
