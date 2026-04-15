@@ -1,0 +1,15 @@
+{
+  "name": "telegram-marketplace",
+  "version": "1.0.0",
+  "description": "Telegram Marketplace System",
+  "private": true,
+  "workspaces": [
+    "api",
+    "bot",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  }
+}
