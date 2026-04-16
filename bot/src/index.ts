@@ -91,11 +91,11 @@ bot.on("callback_query:data", async (ctx) => {
     const orderId = data.split(":")[1];
     // status update in DB here
     await ctx.answerCallbackQuery(`Buyurtma ${orderId} qabul qilindi`);
-    await ctx.editMessageReplyMarkup({ inline_keyboard: [] }); // Remove buttons
+    await ctx.editMessageReplyMarkup(); // Remove buttons
   } else if (data.startsWith("cancel:")) {
     const orderId = data.split(":")[1];
     await ctx.answerCallbackQuery(`Buyurtma ${orderId} bekor qilinadi`);
-    await ctx.editMessageReplyMarkup({ inline_keyboard: [] }); // Remove buttons
+    await ctx.editMessageReplyMarkup(); // Remove buttons
   }
 });
 
