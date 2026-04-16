@@ -71,7 +71,7 @@ export default function Cart() {
           </div>
           {items.length ? (
             <button
-              className="chip bg-white/14 text-white"
+              className="chip bg-white/[0.14] text-white"
               onClick={() => clearCart.mutate()}
               type="button"
             >

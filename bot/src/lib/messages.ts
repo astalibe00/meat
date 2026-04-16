@@ -29,7 +29,7 @@ export function shortId(value: string) {
 }
 
 export function buildMiniAppKeyboard(url: string) {
-  return new InlineKeyboard().webApp("Do'konni ochish", url);
+  return new InlineKeyboard().webApp("Issiq menyuni ochish", url);
 }
 
 export function buildMiniAppUrl(url: string, startParam?: string) {
@@ -43,10 +43,12 @@ export function buildMiniAppUrl(url: string, startParam?: string) {
 }
 
 export function buildMainMenuKeyboard(url: string, isAdmin = false) {
-  const keyboard = new InlineKeyboard().webApp(
-    "Do'konni ochish",
-    buildMiniAppUrl(url),
-  );
+  const keyboard = new InlineKeyboard()
+    .webApp("Issiq menyu", buildMiniAppUrl(url))
+    .webApp("Savatcha", buildMiniAppUrl(url, "cart"))
+    .row()
+    .webApp("Buyurtmalarim", buildMiniAppUrl(url, "orders"))
+    .webApp("Profil", buildMiniAppUrl(url, "profile"));
 
   if (isAdmin) {
     keyboard.row().webApp("Admin panel", buildMiniAppUrl(url, "admin"));
@@ -57,7 +59,7 @@ export function buildMainMenuKeyboard(url: string, isAdmin = false) {
 
 export function buildContactKeyboard() {
   return new Keyboard()
-    .requestContact("Telefon raqamni yuborish")
+    .requestContact("Telefonni bir tegishda yuborish")
     .resized()
     .oneTime();
 }
@@ -67,6 +69,36 @@ export function buildProfileKeyboard() {
     .text("Telefonni yangilash", "profile:phone")
     .row()
     .text("Manzilni yangilash", "profile:address");
+}
+
+export function buildMainMenuText(firstName: string, isAdmin = false) {
+  return [
+    `Salom, ${firstName}.`,
+    "",
+    "Bugungi issiq menyu, savatcha va buyurtmalar bir oynada tayyor.",
+    "",
+    "Tez bo'limlar:",
+    "Issiq menyu",
+    "Savatcha",
+    "Buyurtmalarim",
+    "Profil",
+    ...(isAdmin ? ["Admin panel"] : []),
+  ].join("\n");
+}
+
+export function buildContactPromptText() {
+  return [
+    "Buyurtmani tez yakunlash uchun telefon raqamingizni yuboring.",
+    "",
+    "Tugmani bosishingiz kifoya.",
+  ].join("\n");
+}
+
+export function buildAddressPromptText() {
+  return [
+    "Yetkazib berish uchun asosiy manzilingizni yozing.",
+    "Masalan: Toshkent shahar, Chilonzor, 12-mavze, 15-uy.",
+  ].join("\n");
 }
 
 export function buildStatusKeyboard(orderId: string, status: OrderStatus) {

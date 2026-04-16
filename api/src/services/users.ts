@@ -14,6 +14,16 @@ export interface UserRecord {
   username?: string | null;
 }
 
+function isMissingColumnError(
+  error: { code?: string | null; message?: string | null } | null,
+  column: string,
+) {
+  return (
+    error?.code === "PGRST204" &&
+    Boolean(error.message?.includes(`'${column}' column`))
+  );
+}
+
 export async function upsertTelegramUser(user: TelegramUser) {
   const { data, error } = await supabase
     .from("users")
@@ -39,6 +49,10 @@ export async function upsertTelegramUser(user: TelegramUser) {
 }
 
 export function isUserRegistered(user: Pick<UserRecord, "default_address" | "phone">) {
+  if (!Object.prototype.hasOwnProperty.call(user, "default_address")) {
+    return Boolean(user.phone);
+  }
+
   return Boolean(user.phone && user.default_address);
 }
 
@@ -89,15 +103,35 @@ export async function updateUserProfile(
       : {}),
     ...(input.first_name !== undefined ? { first_name: input.first_name } : {}),
     ...(input.phone !== undefined ? { phone: input.phone } : {}),
-    updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("users")
     .update(payload)
     .eq("id", userId)
     .select("*")
     .single();
+
+  if (isMissingColumnError(error, "default_address") && input.default_address !== undefined) {
+    const fallbackPayload = {
+      ...(input.first_name !== undefined ? { first_name: input.first_name } : {}),
+      ...(input.phone !== undefined ? { phone: input.phone } : {}),
+    };
+
+    if (Object.keys(fallbackPayload).length === 0) {
+      return getUserProfileById(userId);
+    }
+
+    const fallbackResult = await supabase
+      .from("users")
+      .update(fallbackPayload)
+      .eq("id", userId)
+      .select("*")
+      .single();
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
 
   if (error || !data) {
     throw new HttpError(500, "Profilni yangilashda xatolik");

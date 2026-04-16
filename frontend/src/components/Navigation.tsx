@@ -1,15 +1,47 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { canUseProtectedApi } from "../lib/telegram";
+import { Link, useLocation } from "react-router-dom";
 import { fetchCart, queryKeys } from "../lib/queries";
+import { canUseProtectedApi } from "../lib/telegram";
 
-const icons: Record<string, string> = {
-  "/": "⌂",
-  "/cart": "◔",
-  "/orders": "≡",
-  "/products": "▦",
-};
+function NavIcon({ path, active }: { active: boolean; path: string }) {
+  const className = active ? "text-primary" : "text-textSecondary";
+
+  if (path === "/") {
+    return (
+      <svg className={className} fill="none" height="20" viewBox="0 0 24 24" width="20">
+        <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+      </svg>
+    );
+  }
+
+  if (path === "/products") {
+    return (
+      <svg className={className} fill="none" height="20" viewBox="0 0 24 24" width="20">
+        <path d="M5 7.5h14M5 12h14M5 16.5h9" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+        <path d="M17.5 17.5 20 20" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+        <circle cx="15" cy="15" r="3.2" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    );
+  }
+
+  if (path === "/cart") {
+    return (
+      <svg className={className} fill="none" height="20" viewBox="0 0 24 24" width="20">
+        <path d="M4.5 6h1.7l1.4 8.1a1 1 0 0 0 1 .9h7.8a1 1 0 0 0 1-.8L19 8H8.1" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+        <circle cx="10" cy="19" fill="currentColor" r="1.2" />
+        <circle cx="17" cy="19" fill="currentColor" r="1.2" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className={className} fill="none" height="20" viewBox="0 0 24 24" width="20">
+      <path d="M7 5.5h10M7 10h10M7 14.5h6" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <rect height="16" rx="3" stroke="currentColor" strokeWidth="1.8" width="14" x="5" y="4" />
+    </svg>
+  );
+}
 
 export default function Navigation() {
   const location = useLocation();
@@ -27,9 +59,9 @@ export default function Navigation() {
 
   const items = [
     { label: "Asosiy", path: "/" },
-    { label: "Mahsulotlar", path: "/products" },
-    { label: "Savatcha", path: "/cart", badge: itemCount },
-    { label: "Buyurtmalar", path: "/orders" },
+    { label: "Menyu", path: "/products" },
+    { label: "Savat", path: "/cart", badge: itemCount },
+    { label: "Buyurtma", path: "/orders" },
   ];
 
   return (
@@ -42,18 +74,18 @@ export default function Navigation() {
 
         return (
           <Link
-            className="relative flex min-w-[72px] flex-col items-center rounded-xl px-3 py-2 text-xs font-semibold"
+            className="relative flex min-w-[72px] flex-col items-center rounded-[20px] px-3 py-2.5 text-xs font-semibold"
             key={item.path}
             to={item.path}
           >
             {isActive ? (
               <motion.span
-                className="absolute inset-0 rounded-xl bg-primary/10"
+                className="absolute inset-0 rounded-[20px] bg-primary/10"
                 layoutId="nav-indicator"
               />
             ) : null}
-            <span className={`relative z-10 text-sm ${isActive ? "text-primary" : "text-textSecondary"}`}>
-              {icons[item.path]}
+            <span className="relative z-10">
+              <NavIcon active={isActive} path={item.path} />
             </span>
             <span className={`relative z-10 mt-1 ${isActive ? "text-primary" : "text-textSecondary"}`}>
               {item.label}

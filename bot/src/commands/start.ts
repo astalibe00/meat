@@ -2,7 +2,10 @@ import type { Bot, Context } from "grammy";
 import { isAdmin } from "../lib/admin";
 import { env } from "../lib/env";
 import {
+  buildAddressPromptText,
+  buildContactPromptText,
   buildContactKeyboard,
+  buildMainMenuText,
   buildMainMenuKeyboard,
   buildProfileKeyboard,
   formatProfileSummary,
@@ -10,9 +13,31 @@ import {
 import {
   getUserByTelegramId,
   isRegistered,
+  supportsDefaultAddress,
   updateBotUserProfile,
   upsertTelegramUser,
 } from "../services/users";
+
+async function withUserFeedback(ctx: Context, action: () => Promise<void>) {
+  try {
+    await action();
+  } catch (error) {
+    console.error("Start command flow failed:", error);
+    const message =
+      error instanceof Error ? error.message : "Noma'lum xatolik";
+
+    if (/invalid api key/i.test(message)) {
+      await ctx.reply(
+        "Bot sozlamasida xatolik bor: SUPABASE_SERVICE_ROLE_KEY noto'g'ri. Admin paneldagi haqiqiy service role kalitni .env ga qo'ying.",
+      );
+      return;
+    }
+
+    await ctx.reply(
+      `Ro'yxatdan o'tish vaqtida xatolik yuz berdi: ${message}`,
+    );
+  }
+}
 
 async function syncTelegramUser(ctx: Context) {
   if (!ctx.from) {
@@ -29,7 +54,7 @@ async function syncTelegramUser(ctx: Context) {
 
 async function sendMainMenu(ctx: Context) {
   const firstName = ctx.from?.first_name ?? "mijoz";
-  const text = `Salom, ${firstName}. Do'kon va buyurtmalar shu yerdan boshqariladi.`;
+  const text = buildMainMenuText(firstName, isAdmin(ctx.from?.id));
 
   if (!env.miniAppUrl) {
     await ctx.reply(text);
@@ -42,15 +67,13 @@ async function sendMainMenu(ctx: Context) {
 }
 
 async function promptForContact(ctx: Context) {
-  await ctx.reply("Davom etish uchun telefon raqamingizni yuboring.", {
+  await ctx.reply(buildContactPromptText(), {
     reply_markup: buildContactKeyboard(),
   });
 }
 
 async function promptForAddress(ctx: Context) {
-  await ctx.reply(
-    "Yetkazib berish uchun asosiy manzilingizni yuboring. Masalan: Toshkent shahar, Chilonzor, 12-mavze, 15-uy.",
-  );
+  await ctx.reply(buildAddressPromptText());
 }
 
 async function handleStart(ctx: Context) {
@@ -61,7 +84,7 @@ async function handleStart(ctx: Context) {
     return;
   }
 
-  if (!user.default_address) {
+  if (supportsDefaultAddress(user) && !user.default_address) {
     await promptForAddress(ctx);
     return;
   }
@@ -70,129 +93,150 @@ async function handleStart(ctx: Context) {
 }
 
 export function registerStartCommand(bot: Bot) {
-  bot.command("start", handleStart);
+  bot.command("start", async (ctx) => {
+    await withUserFeedback(ctx, async () => {
+      await handleStart(ctx);
+    });
+  });
 
   bot.command("profile", async (ctx) => {
-    const user = await syncTelegramUser(ctx);
+    await withUserFeedback(ctx, async () => {
+      const user = await syncTelegramUser(ctx);
 
-    await ctx.reply(
-      [
-        "Profil ma'lumotlari",
-        "",
-        formatProfileSummary(user),
-        "",
-        "Telefonni tugma orqali yangilang yoki manzil uchun /address yangi manzil yozing.",
-      ].join("\n"),
-      {
-        reply_markup: buildProfileKeyboard(),
-      },
-    );
+      await ctx.reply(
+        [
+          "Profil ma'lumotlari",
+          "",
+          formatProfileSummary(user),
+          "",
+          "Telefonni tugma orqali yangilang yoki manzil uchun /address yangi manzil yozing.",
+        ].join("\n"),
+        {
+          reply_markup: buildProfileKeyboard(),
+        },
+      );
+    });
   });
 
   bot.command("address", async (ctx) => {
-    if (!ctx.from) {
-      return;
-    }
+    await withUserFeedback(ctx, async () => {
+      if (!ctx.from) {
+        return;
+      }
 
-    await syncTelegramUser(ctx);
+      await syncTelegramUser(ctx);
 
-    const address = ctx.match?.trim();
-    if (!address || address.length < 5) {
-      await ctx.reply("Format: /address Toshkent, Yunusobod, 10-uy");
-      return;
-    }
+      const address = ctx.match?.trim();
+      if (!address || address.length < 5) {
+        await ctx.reply("Format: /address Toshkent, Yunusobod, 10-uy");
+        return;
+      }
 
-    const user = await updateBotUserProfile(ctx.from.id, {
-      default_address: address,
+      const user = await updateBotUserProfile(ctx.from.id, {
+        default_address: address,
+      });
+
+      await ctx.reply(
+        ["Manzil yangilandi.", "", formatProfileSummary(user)].join("\n"),
+        {
+          reply_markup: buildProfileKeyboard(),
+        },
+      );
     });
-
-    await ctx.reply(
-      ["Manzil yangilandi.", "", formatProfileSummary(user)].join("\n"),
-      {
-        reply_markup: buildProfileKeyboard(),
-      },
-    );
   });
 
   bot.on("message:contact", async (ctx) => {
-    if (!ctx.from) {
-      return;
-    }
+    await withUserFeedback(ctx, async () => {
+      if (!ctx.from) {
+        return;
+      }
 
-    await syncTelegramUser(ctx);
+      await syncTelegramUser(ctx);
 
-    const contact = ctx.message.contact;
-    if (contact.user_id !== ctx.from.id) {
-      await ctx.reply("Iltimos, o'zingizning telefon raqamingizni yuboring.");
-      return;
-    }
+      const contact = ctx.message.contact;
+      if (contact.user_id && contact.user_id !== ctx.from.id) {
+        await ctx.reply("Iltimos, o'zingizning telefon raqamingizni yuboring.");
+        return;
+      }
 
-    const user = await updateBotUserProfile(ctx.from.id, {
-      phone: contact.phone_number.startsWith("+")
-        ? contact.phone_number
-        : `+${contact.phone_number}`,
+      const user = await updateBotUserProfile(ctx.from.id, {
+        phone: contact.phone_number.startsWith("+")
+          ? contact.phone_number
+          : `+${contact.phone_number}`,
+      });
+
+      if (supportsDefaultAddress(user) && !user.default_address) {
+        await ctx.reply("Telefon saqlandi. Endi manzilni yozing.");
+        await promptForAddress(ctx);
+        return;
+      }
+
+      await ctx.reply(
+        ["Telefon yangilandi.", "", formatProfileSummary(user)].join("\n"),
+      );
+      await sendMainMenu(ctx);
     });
-
-    if (!user.default_address) {
-      await ctx.reply("Telefon saqlandi.");
-      await promptForAddress(ctx);
-      return;
-    }
-
-    await ctx.reply(["Telefon yangilandi.", "", formatProfileSummary(user)].join("\n"));
-    await sendMainMenu(ctx);
   });
 
   bot.on("message:text", async (ctx) => {
-    if (!ctx.from) {
-      return;
-    }
+    await withUserFeedback(ctx, async () => {
+      if (!ctx.from) {
+        return;
+      }
 
-    const text = ctx.message.text.trim();
-    if (!text || text.startsWith("/")) {
-      return;
-    }
+      const text = ctx.message.text.trim();
+      if (!text || text.startsWith("/")) {
+        return;
+      }
 
-    const user = await getUserByTelegramId(ctx.from.id).catch(() => syncTelegramUser(ctx));
-    if (user.phone && !user.default_address && text.length >= 5) {
-      await updateBotUserProfile(ctx.from.id, {
-        default_address: text,
-      });
-      await ctx.reply("Ro'yxatdan o'tish tugadi.");
-      await sendMainMenu(ctx);
-      return;
-    }
+      const user = await getUserByTelegramId(ctx.from.id).catch(() => syncTelegramUser(ctx));
+      if (
+        supportsDefaultAddress(user) &&
+        user.phone &&
+        !user.default_address &&
+        text.length >= 5
+      ) {
+        await updateBotUserProfile(ctx.from.id, {
+          default_address: text,
+        });
+        await ctx.reply("Ro'yxatdan o'tish tugadi. Menyu tayyor.");
+        await sendMainMenu(ctx);
+        return;
+      }
 
-    if (!isRegistered(user)) {
-      if (!user.phone) {
+      if (!isRegistered(user)) {
+        if (!user.phone) {
+          await promptForContact(ctx);
+          return;
+        }
+
+        if (supportsDefaultAddress(user) && !user.default_address) {
+          await promptForAddress(ctx);
+        }
+      }
+    });
+  });
+
+  bot.on("callback_query:data", async (ctx, next) => {
+    await withUserFeedback(ctx, async () => {
+      if (!ctx.from) {
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      if (ctx.callbackQuery.data === "profile:phone") {
+        await ctx.answerCallbackQuery();
         await promptForContact(ctx);
         return;
       }
 
-      if (!user.default_address) {
-        await promptForAddress(ctx);
+      if (ctx.callbackQuery.data === "profile:address") {
+        await ctx.answerCallbackQuery();
+        await ctx.reply("Yangi manzilni /address yordamida yuboring. Masalan:\n/address Toshkent, Uchtepa, 23-uy");
+        return;
       }
-    }
-  });
 
-  bot.on("callback_query:data", async (ctx, next) => {
-    if (!ctx.from) {
-      await ctx.answerCallbackQuery();
-      return;
-    }
-
-    if (ctx.callbackQuery.data === "profile:phone") {
-      await ctx.answerCallbackQuery();
-      await promptForContact(ctx);
-      return;
-    }
-
-    if (ctx.callbackQuery.data === "profile:address") {
-      await ctx.answerCallbackQuery();
-      await ctx.reply("Yangi manzilni /address yordamida yuboring. Masalan:\n/address Toshkent, Uchtepa, 23-uy");
-      return;
-    }
-
-    await next();
+      await next();
+    });
   });
 }

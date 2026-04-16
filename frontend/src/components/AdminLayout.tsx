@@ -33,7 +33,7 @@ export default function AdminLayout({
               <h1 className="hero-title text-[2rem]">{title}</h1>
               <p className="mt-2 max-w-2xl text-sm text-white/80">{description}</p>
             </div>
-            <Link className="chip bg-white/14 text-white" to="/">
+            <Link className="chip bg-white/[0.14] text-white" to="/">
               Do'kon
             </Link>
           </div>
@@ -46,7 +46,7 @@ export default function AdminLayout({
 
               return (
                 <Link
-                  className={`chip ${isActive ? "bg-white text-textPrimary" : "bg-white/12 text-white"}`}
+                  className={`chip ${isActive ? "bg-white text-textPrimary" : "bg-white/[0.12] text-white"}`}
                   key={tab.path}
                   to={tab.path}
                 >

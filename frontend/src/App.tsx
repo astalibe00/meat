@@ -33,6 +33,21 @@ function LaunchHandler() {
       return;
     }
 
+    if (startParam === "cart") {
+      navigate("/cart", { replace: true });
+      return;
+    }
+
+    if (startParam === "orders") {
+      navigate("/orders", { replace: true });
+      return;
+    }
+
+    if (startParam === "profile") {
+      navigate("/profile", { replace: true });
+      return;
+    }
+
     const match = /^product_(.+)$/.exec(startParam);
     if (match) {
       navigate(`/products/${match[1]}`, { replace: true });

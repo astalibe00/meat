@@ -5,7 +5,6 @@ import ProductCard from "../components/ProductCard";
 import { ProductListSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { api } from "../lib/api";
-import { canUseProtectedApi } from "../lib/telegram";
 import {
   fetchCategories,
   fetchOrders,
@@ -13,12 +12,32 @@ import {
   fetchProducts,
   queryKeys,
 } from "../lib/queries";
+import { canUseProtectedApi } from "../lib/telegram";
 import type { Product } from "../lib/types";
+import { formatPrice, toNumber } from "../lib/utils";
 
-const banners = [
-  "30 daqiqa ichida yetkazish",
-  "Telegram ichida bir tegishda buyurtma",
-  "Yangi menyular har kuni yangilanadi",
+const highlights = [
+  {
+    eyebrow: "Issiq taom",
+    text: "Kabob, grill va kuchli ta'mlar bir oynada jamlangan.",
+    title: "Bugungi menyu ishtahani ochadi",
+  },
+  {
+    eyebrow: "Tez yetkazish",
+    text: "Buyurtma berilganidan keyin yo'lga tayyor bo'lgan oqim.",
+    title: "Yaqin manzillarga 30 daqiqada",
+  },
+  {
+    eyebrow: "Yangi tayyor",
+    text: "Har mahsulot buyurtma tushishi bilan yig'iladi va qadoqlanadi.",
+    title: "Sifat va issiqlik saqlanadi",
+  },
+];
+
+const serviceStats = [
+  { label: "Yetkazish", value: "~30 daqiqa" },
+  { label: "Format", value: "Mini App" },
+  { label: "Buyurtma", value: "Bir tegish" },
 ];
 
 export default function Home() {
@@ -48,7 +67,9 @@ export default function Home() {
     queryKey: queryKeys.products(activeCategory, deferredSearch),
   });
 
-  const featuredProducts = productsQuery.data?.slice(0, 4) ?? [];
+  const products = productsQuery.data ?? [];
+  const featuredProducts = products.slice(0, 4);
+  const topProducts = products.slice(0, 3);
   const fastReorderOrder = ordersQuery.data?.find((order) => order.status === "completed");
 
   const addToCart = useMutation({
@@ -81,57 +102,87 @@ export default function Home() {
       <ToastComponent />
 
       <header className="hero-panel">
-        <p className="eyebrow">Toshkent</p>
-        <h1 className="hero-title">Bir oynada do'kon, buyurtma va tracking</h1>
-        <p className="mt-3 max-w-md text-sm text-white/80">
+        <p className="eyebrow text-white/[0.72]">Bugungi ta'm</p>
+        <h1 className="hero-title max-w-lg">
+          Ishtaha ochadigan menyu, tez yetkazish va toza buyurtma oqimi
+        </h1>
+        <p className="mt-3 max-w-md text-sm leading-6 text-white/[0.82]">
           {profileQuery.data?.is_registered
-            ? `${profileQuery.data.first_name}, bugun nima buyurtma qilamiz?`
-            : "Profilni to'ldirib qo'ysangiz, keyingi buyurtmalar bir necha soniyada yakunlanadi."}
+            ? `${profileQuery.data.first_name}, bugungi eng mazali tanlovlar sizni kutyapti.`
+            : "Telefonni bir marta saqlang, keyingi buyurtmalar bir necha soniyada tayyor bo'ladi."}
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          {serviceStats.map((stat) => (
+            <div className="rounded-[24px] bg-white/[0.12] px-3 py-3 backdrop-blur-sm" key={stat.label}>
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">
+                {stat.label}
+              </p>
+              <p className="mt-2 text-sm font-black text-white">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
           <Link className="chip bg-white text-textPrimary" to="/products">
-            Menyuni ko'rish
+            Issiq menyu
           </Link>
-          <Link className="chip bg-white/14 text-white" to="/profile">
+          <Link className="chip bg-white/[0.14] text-white" to="/orders">
+            Buyurtmalar
+          </Link>
+          <Link className="chip bg-white/[0.14] text-white" to="/profile">
             Profil
           </Link>
           {profileQuery.data?.is_admin ? (
-            <Link className="chip bg-white/14 text-white" to="/admin">
+            <Link className="chip bg-white/[0.14] text-white" to="/admin">
               Admin panel
             </Link>
           ) : null}
         </div>
       </header>
 
-      <input
-        className="input-field"
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Mahsulot qidirish"
-        type="search"
-        value={search}
-      />
+      <section className="section-shell">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="eyebrow">Qidiruv</p>
+            <h2 className="section-title">Bugungi taomni toping</h2>
+          </div>
+          <Link className="text-sm font-bold text-primary" to="/products">
+            To'liq menyu
+          </Link>
+        </div>
+
+        <input
+          className="input-field mt-4"
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Kabob, steak, sous yoki kategoriya qidiring"
+          type="search"
+          value={search}
+        />
+      </section>
 
       <div className="grid gap-3 md:grid-cols-3">
-        {banners.map((banner) => (
-          <div className="surface-panel bg-white/85" key={banner}>
-            <p className="text-xs uppercase tracking-[0.2em] text-primary">Afzallik</p>
-            <p className="mt-2 text-base font-black text-textPrimary">{banner}</p>
+        {highlights.map((item) => (
+          <div className="flavor-card" key={item.title}>
+            <p className="eyebrow text-primary">{item.eyebrow}</p>
+            <h3 className="mt-2 text-lg font-black text-textPrimary">{item.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-textSecondary">{item.text}</p>
           </div>
         ))}
       </div>
 
       {fastReorderOrder ? (
-        <div className="surface-panel">
+        <div className="warm-stat">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="eyebrow text-primary">Tez buyurtma</p>
-              <h2 className="section-title">Oxirgi buyurtmani qayta qo'shish</h2>
+              <p className="eyebrow text-white/[0.72]">Tez qayta buyurtma</p>
+              <h2 className="mt-2 text-2xl font-black">Oxirgi buyurtma bir tegishda savatchada</h2>
             </div>
-            <button className="chip" onClick={() => reorder.mutate(fastReorderOrder.id)} type="button">
-              Yana buyurtma
+            <button className="chip shrink-0 bg-white text-textPrimary" onClick={() => reorder.mutate(fastReorderOrder.id)} type="button">
+              Qayta qo'shish
             </button>
           </div>
-          <p className="mt-3 text-sm text-textSecondary">
+          <p className="mt-3 text-sm leading-6 text-white/[0.82]">
             {fastReorderOrder.items.map((item) => `${item.name} x${item.quantity}`).join(", ")}
           </p>
         </div>
@@ -165,32 +216,55 @@ export default function Home() {
         ))}
       </div>
 
+      {topProducts.length ? (
+        <section className="section-shell">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="eyebrow">Top sotuvlar</p>
+              <h2 className="section-title">Ko'p tanlanayotgan mahsulotlar</h2>
+            </div>
+            <Link className="text-sm font-bold text-primary" to="/products">
+              Ko'proq
+            </Link>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {topProducts.map((product, index) => (
+              <div className="flavor-card" key={product.id}>
+                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                  <span>{`Top 0${index + 1}`}</span>
+                  <span>Chef tavsiya</span>
+                </div>
+                <h3 className="mt-3 text-lg font-black text-textPrimary">{product.name}</h3>
+                <p className="mt-2 line-clamp-2 text-sm text-textSecondary">
+                  {product.description || "Mazali tanlov va kuchli porsiya."}
+                </p>
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-base font-black text-primary">
+                    {formatPrice(toNumber(product.price))}
+                  </span>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      if (!canAccessProtectedApi) {
+                        showToast("Savat uchun Telegram avtorizatsiyasi kerak", "error");
+                        return;
+                      }
+
+                      addToCart.mutate(product);
+                    }}
+                    type="button"
+                  >
+                    Qo'shish
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="flex items-center justify-between">
         <h2 className="section-title">Tanlangan mahsulotlar</h2>
-        <Link className="text-sm font-bold text-primary" to="/products">
-          To'liq menyu
-        </Link>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-4">
-        {featuredProducts.map((product) => (
-          <ProductCard
-            key={product.id}
-            onAdd={(selectedProduct) => {
-              if (!canAccessProtectedApi) {
-                showToast("Savat uchun Telegram avtorizatsiyasi kerak", "error");
-                return;
-              }
-
-              addToCart.mutate(selectedProduct);
-            }}
-            product={product}
-          />
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between">
-        <h2 className="section-title">Barcha mahsulotlar</h2>
         <Link className="text-sm font-bold text-primary" to="/products">
           Filtrlar bilan ko'rish
         </Link>
@@ -199,8 +273,8 @@ export default function Home() {
       {productsQuery.isLoading ? (
         <ProductListSkeleton />
       ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          {productsQuery.data?.map((product) => (
+        <div className="grid gap-3 md:grid-cols-4">
+          {featuredProducts.map((product) => (
             <ProductCard
               key={product.id}
               onAdd={(selectedProduct) => {
@@ -217,9 +291,9 @@ export default function Home() {
         </div>
       )}
 
-      {!productsQuery.isLoading && !productsQuery.data?.length ? (
+      {!productsQuery.isLoading && !products.length ? (
         <div className="surface-panel text-sm text-textSecondary">
-          Mahsulot topilmadi.
+          Hozircha mos mahsulot topilmadi.
         </div>
       ) : null}
     </div>

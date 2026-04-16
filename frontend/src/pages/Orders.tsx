@@ -46,7 +46,7 @@ export default function Orders() {
             </p>
           </div>
           <button
-            className="chip bg-white/14 text-white"
+            className="chip bg-white/[0.14] text-white"
             onClick={() => void ordersQuery.refetch()}
             type="button"
           >

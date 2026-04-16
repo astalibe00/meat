@@ -4,9 +4,15 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import { useToast } from "../components/Toast";
 import { api } from "../lib/api";
-import { canUseProtectedApi } from "../lib/telegram";
 import { fetchProduct, fetchProducts, queryKeys } from "../lib/queries";
+import { canUseProtectedApi } from "../lib/telegram";
 import { formatPrice, toNumber } from "../lib/utils";
+
+const detailStats = [
+  { label: "Tayyorlash", value: "18 daqiqa" },
+  { label: "Yetkazish", value: "~30 daqiqa" },
+  { label: "Porsiya", value: "To'yimli" },
+];
 
 export default function ProductDetail() {
   const { id = "" } = useParams();
@@ -68,57 +74,95 @@ export default function ProductDetail() {
     <div className="page-wrap pb-32">
       <ToastComponent />
 
-      {product.image_url ? (
-        <img
-          alt={product.name}
-          className="h-80 w-full object-cover"
-          src={product.image_url}
-        />
-      ) : (
-        <div className="flex h-80 items-center justify-center bg-primary/10">
-          <span className="text-6xl font-black text-primary">
-            {product.name.slice(0, 1).toUpperCase()}
-          </span>
+      <div className="relative">
+        <div className="media-shell h-[420px] w-full rounded-b-[40px]">
+          {product.image_url ? (
+            <img
+              alt={product.name}
+              className="h-full w-full object-cover"
+              src={product.image_url}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-primary/10">
+              <span className="text-7xl font-black text-primary">
+                {product.name.slice(0, 1).toUpperCase()}
+              </span>
+            </div>
+          )}
+
+          <div className="absolute left-4 top-4 z-10 flex items-center gap-2">
+            <button
+              className="chip bg-white text-textPrimary"
+              onClick={() => navigate(-1)}
+              type="button"
+            >
+              Ortga
+            </button>
+            <span className="info-pill bg-white/[0.92]">{product.categories?.name ?? "Chef tanlovi"}</span>
+          </div>
+
+          <div className="absolute bottom-5 left-5 right-5 z-10">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/[0.78]">
+              Bugungi tavsiya
+            </p>
+            <h1 className="mt-2 max-w-lg text-4xl font-black text-white">
+              {product.name}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/[0.92] px-4 py-2 text-base font-black text-primary shadow-sm">
+                {formatPrice(toNumber(product.price))}
+              </span>
+              <span className="rounded-full bg-black/[0.24] px-4 py-2 text-sm font-bold text-white">
+                Yangi tayyorlanadi
+              </span>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
       <div className="space-y-5 p-5">
-        <button
-          className="text-sm font-semibold text-primary"
-          onClick={() => navigate(-1)}
-          type="button"
-        >
-          Ortga
-        </button>
+        <div className="section-shell">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="eyebrow text-primary">Tavsif</p>
+              <h2 className="section-title">Mazali tafsilotlar</h2>
+            </div>
+            <span className="info-pill">Issiq yetkaziladi</span>
+          </div>
 
-        <div>
-          <p className="eyebrow text-primary">{product.categories?.name ?? "Mahsulot"}</p>
-          <h1 className="mt-2 text-3xl font-black text-textPrimary">{product.name}</h1>
-          <p className="mt-2 text-2xl font-black text-primary">
-            {formatPrice(toNumber(product.price))}
+          <p className="mt-4 text-base leading-7 text-textSecondary">
+            {product.description || "Mahsulot tavsifi mavjud emas"}
           </p>
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            {detailStats.map((stat) => (
+              <div className="flavor-card p-3" key={stat.label}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-textSecondary">
+                  {stat.label}
+                </p>
+                <p className="mt-2 text-sm font-black text-textPrimary">{stat.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <p className="text-base leading-7 text-textSecondary">
-          {product.description || "Mahsulot tavsifi mavjud emas"}
-        </p>
-
-        <div className="surface-panel flex items-center justify-between">
+        <div className="section-shell flex items-center justify-between">
           <div>
-            <p className="text-sm font-bold text-textPrimary">Miqdor</p>
-            <p className="mt-1 text-sm text-textSecondary">Jami: {formatPrice(total)}</p>
+            <p className="eyebrow text-primary">Miqdor</p>
+            <h2 className="section-title">Buyurtma miqdorini tanlang</h2>
+            <p className="mt-2 text-sm text-textSecondary">Jami: {formatPrice(total)}</p>
           </div>
           <div className="flex items-center gap-3">
             <button
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-surface text-lg font-bold"
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white text-lg font-bold text-textPrimary"
               onClick={() => setQuantity((current) => Math.max(1, current - 1))}
               type="button"
             >
               -
             </button>
-            <span className="text-lg font-bold text-textPrimary">{quantity}</span>
+            <span className="min-w-8 text-center text-xl font-black text-textPrimary">{quantity}</span>
             <button
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-lg font-bold text-white"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-lg font-bold text-white shadow-lg"
               onClick={() => setQuantity((current) => current + 1)}
               type="button"
             >
@@ -130,9 +174,12 @@ export default function ProductDetail() {
         {relatedProducts.length ? (
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="section-title">Yana tavsiya qilamiz</h2>
+              <div>
+                <p className="eyebrow text-primary">Yana tavsiya qilamiz</p>
+                <h2 className="section-title">Ta'mni davom ettiring</h2>
+              </div>
               <Link className="text-sm font-bold text-primary" to="/products">
-                Ko'proq
+                To'liq menyu
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -164,20 +211,31 @@ export default function ProductDetail() {
       </div>
 
       <div className="nav-shell fixed bottom-3 left-1/2 z-40 flex w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 border-none p-3">
-        <button
-          className="btn-primary"
-          onClick={() => {
-            if (!canAccessProtectedApi) {
-              showToast("Savat uchun Telegram avtorizatsiyasi kerak", "error");
-              return;
-            }
+        <div className="w-full">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-textSecondary">
+                Buyurtma summasi
+              </p>
+              <p className="text-lg font-black text-textPrimary">{formatPrice(total)}</p>
+            </div>
+            <p className="text-sm font-semibold text-textSecondary">{quantity} ta</p>
+          </div>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              if (!canAccessProtectedApi) {
+                showToast("Savat uchun Telegram avtorizatsiyasi kerak", "error");
+                return;
+              }
 
-            addToCart.mutate();
-          }}
-          type="button"
-        >
-          Savatga qo'shish - {formatPrice(total)}
-        </button>
+              addToCart.mutate();
+            }}
+            type="button"
+          >
+            Savatga qo'shish
+          </button>
+        </div>
       </div>
     </div>
   );
