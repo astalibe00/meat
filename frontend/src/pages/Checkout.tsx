@@ -1,177 +1,210 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useCartStore } from '../store/useCartStore';
-import { formatPrice } from '../lib/utils';
-import { useToast } from '../components/Toast';
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
+import AuthNotice from "../components/AuthNotice";
+import { ListSkeleton } from "../components/Skeleton";
+import { useToast } from "../components/Toast";
+import { api } from "../lib/api";
+import { canUseProtectedApi } from "../lib/telegram";
+import { fetchCart, fetchProfile, queryKeys } from "../lib/queries";
+import type { Order } from "../lib/types";
+import { formatPrice, toNumber } from "../lib/utils";
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const { items, getTotal, clearCart } = useCartStore();
-  const [phone, setPhone] = useState('+998');
-  const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [showSummary, setShowSummary] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { showToast, ToastComponent } = useToast();
+  const queryClient = useQueryClient();
+  const [phone, setPhone] = useState("+998");
+  const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const { ToastComponent, showToast } = useToast();
+  const canAccessProtectedApi = canUseProtectedApi();
 
-  const total = getTotal();
+  const cartQuery = useQuery({
+    enabled: canAccessProtectedApi,
+    queryFn: fetchCart,
+    queryKey: queryKeys.cart,
+  });
+  const profileQuery = useQuery({
+    enabled: canAccessProtectedApi,
+    queryFn: fetchProfile,
+    queryKey: queryKeys.profile,
+  });
 
-  if (items.length === 0) {
-    navigate('/cart');
-    return null;
+  useEffect(() => {
+    if (!profileQuery.data) {
+      return;
+    }
+
+    setPhone(profileQuery.data.phone ?? "+998");
+    setAddress(profileQuery.data.default_address ?? "");
+  }, [profileQuery.data]);
+
+  const createOrder = useMutation({
+    mutationFn: async () => {
+      await api.patch("/me", {
+        default_address: address,
+        first_name: profileQuery.data?.first_name ?? "Mijoz",
+        phone,
+      });
+
+      return api.post<Order>("/orders", {
+        location: address,
+        payment_method: paymentMethod,
+        phone,
+      });
+    },
+    onError: (error) => {
+      showToast(error instanceof Error ? error.message : "Buyurtma yuborilmadi", "error");
+    },
+    onSuccess: (order) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.orders });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile });
+      navigate(`/orders/${order.id}`);
+    },
+  });
+
+  if (!canAccessProtectedApi) {
+    return (
+      <div className="p-4">
+        <AuthNotice title="Rasmiylashtirish yopiq" />
+      </div>
+    );
   }
 
-  const handleSubmit = async () => {
-    // Validation
-    if (phone.length < 13) {
-      showToast('Telefon raqamni to\'liq kiriting', 'error');
-      return;
-    }
-    if (address.trim().length < 5) {
-      showToast('Manzilni kiriting (kamida 5 belgi)', 'error');
-      return;
-    }
+  const items = cartQuery.data ?? [];
+  const total = items.reduce(
+    (sum, item) => sum + toNumber(item.products?.price) * item.quantity,
+    0,
+  );
 
-    setIsSubmitting(true);
+  if (cartQuery.isLoading) {
+    return (
+      <div className="p-4">
+        <ListSkeleton />
+      </div>
+    );
+  }
 
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1500));
-
-    // In production: api.post('/orders', { phone, location: address, payment_method: paymentMethod })
-    clearCart();
-    setIsSubmitting(false);
-    showToast('Buyurtma muvaffaqiyatli yuborildi!', 'success');
-    setTimeout(() => navigate('/orders/demo-123'), 500);
-  };
-
-  const PAYMENT_METHODS = [
-    { id: 'cash', label: '💵 Naqd pul', available: true },
-    { id: 'click', label: '💳 Click', available: false },
-    { id: 'payme', label: '💳 Payme', available: false },
-  ];
+  if (!items.length) {
+    return (
+      <div className="p-4">
+        <div className="surface-panel text-sm text-textSecondary">
+          Savatcha bo'sh. Avval mahsulot tanlang.
+        </div>
+        <Link className="mt-4 inline-flex text-sm font-semibold text-primary" to="/products">
+          Mahsulotlarga o'tish
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 pb-32">
+    <div className="page-wrap space-y-5 p-4 pb-40">
       <ToastComponent />
 
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-4 flex items-center text-primary font-medium text-sm"
-      >
-        ← Ortga
-      </button>
-      <h1 className="text-2xl font-bold mb-6 text-textPrimary">Rasmiylashtirish</h1>
+      <div className="hero-panel">
+        <p className="eyebrow">Checkout</p>
+        <h1 className="hero-title text-[2rem]">Bir necha qadamda tasdiqlang</h1>
+        <p className="mt-2 text-sm text-white/80">
+          Telefon va manzil saqlanadi, keyingi buyurtmalar yanada tezlashadi.
+        </p>
+      </div>
 
-      <div className="space-y-5">
-        {/* Phone */}
+      <div className="surface-panel space-y-4">
         <div>
-          <label className="block text-sm font-semibold mb-1.5 text-textPrimary">Telefon raqam</label>
+          <label className="mb-2 block text-sm font-semibold text-textPrimary">
+            Telefon raqam
+          </label>
           <input
+            className="input-field"
+            onChange={(event) => setPhone(event.target.value)}
+            placeholder="+998901234567"
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+998 90 123 45 67"
-            maxLength={17}
-            className="input-field"
           />
         </div>
 
-        {/* Address */}
         <div>
-          <label className="block text-sm font-semibold mb-1.5 text-textPrimary">Yetkazish manzili</label>
+          <label className="mb-2 block text-sm font-semibold text-textPrimary">
+            Yetkazish manzili
+          </label>
           <textarea
-            rows={3}
+            className="input-field min-h-28 resize-none"
+            onChange={(event) => setAddress(event.target.value)}
+            placeholder="Toshkent, tuman, ko'cha, uy"
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Toshkent shahar, Chilonzor tumani, ..."
-            className="input-field resize-none"
           />
         </div>
 
-        {/* Payment method */}
-        <div>
-          <label className="block text-sm font-semibold mb-1.5 text-textPrimary">To'lov turi</label>
-          <div className="space-y-2">
-            {PAYMENT_METHODS.map((method) => (
-              <button
-                key={method.id}
-                onClick={() => method.available && setPaymentMethod(method.id)}
-                disabled={!method.available}
-                className={`w-full p-3.5 rounded-2xl text-left font-medium text-sm flex items-center justify-between transition-all ${
-                  paymentMethod === method.id
-                    ? 'border-2 border-primary bg-primary/5 text-primary'
-                    : method.available
-                    ? 'border border-gray-200 text-textPrimary hover:border-gray-300'
-                    : 'border border-gray-100 text-gray-400 bg-gray-50'
-                }`}
-              >
-                <span>{method.label}</span>
-                {!method.available && (
-                  <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded-full font-semibold">
-                    Tez orada
-                  </span>
-                )}
-              </button>
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-textPrimary">To'lov turi</p>
+          {[
+            { label: "Naqd pul", value: "cash", enabled: true },
+            { label: "Click - tez orada", value: "click", enabled: false },
+            { label: "Payme - tez orada", value: "payme", enabled: false },
+          ].map((option) => (
+            <button
+              className={`w-full rounded-[22px] border px-4 py-3 text-left text-sm font-semibold ${
+                paymentMethod === option.value
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-black/10 text-textSecondary"
+              } ${!option.enabled ? "opacity-60" : ""}`}
+              disabled={!option.enabled}
+              key={option.value}
+              onClick={() => setPaymentMethod(option.value)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="rounded-[24px] bg-bgMain/80 p-4">
+          <p className="text-sm font-semibold text-textPrimary">Buyurtma tarkibi</p>
+          <div className="mt-3 space-y-2">
+            {items.map((item) => (
+              <div className="flex items-center justify-between text-sm" key={item.id}>
+                <span className="text-textSecondary">
+                  {item.products?.name} x{item.quantity}
+                </span>
+                <span className="font-semibold text-textPrimary">
+                  {formatPrice(toNumber(item.products?.price) * item.quantity)}
+                </span>
+              </div>
             ))}
           </div>
         </div>
-
-        {/* Order summary */}
-        <div>
-          <button
-            onClick={() => setShowSummary(!showSummary)}
-            className="w-full flex justify-between items-center py-3 text-sm font-semibold text-textPrimary"
-          >
-            <span>Buyurtma tafsilotlari ({items.length} mahsulot)</span>
-            <span className={`transition-transform ${showSummary ? 'rotate-180' : ''}`}>▼</span>
-          </button>
-          {showSummary && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              className="space-y-2 mt-1"
-            >
-              {items.map((item) => (
-                <div key={item.product_id} className="flex justify-between text-sm py-1">
-                  <span className="text-textSecondary">
-                    {item.name} × {item.quantity}
-                  </span>
-                  <span className="font-semibold">{formatPrice(item.price * item.quantity)}</span>
-                </div>
-              ))}
-              <div className="border-t pt-2 flex justify-between font-bold text-sm">
-                <span>Yetkazish:</span>
-                <span className="text-success">Bepul</span>
-              </div>
-            </motion.div>
-          )}
-        </div>
       </div>
 
-      {/* Bottom confirm */}
-      <div className="fixed bottom-20 left-0 w-full p-4 glass border-t border-gray-200/50">
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-textSecondary font-medium">Jami:</span>
-          <span className="text-xl font-bold text-textPrimary">{formatPrice(total)}</span>
+      <div className="nav-shell fixed bottom-3 left-1/2 z-40 flex w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 border-none p-4">
+        <div className="w-full">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-sm text-textSecondary">Jami</span>
+            <span className="text-lg font-bold text-textPrimary">
+              {formatPrice(total)}
+            </span>
+          </div>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              if (!/^\+998\d{9}$/.test(phone)) {
+                showToast("Telefon raqam +998 bilan to'g'ri kiriting", "error");
+                return;
+              }
+
+              if (address.trim().length < 5) {
+                showToast("Manzilni to'liq kiriting", "error");
+                return;
+              }
+
+              createOrder.mutate();
+            }}
+            type="button"
+          >
+            Tasdiqlash
+          </button>
         </div>
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className={`btn-primary flex items-center justify-center gap-2 ${
-            isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
-          }`}
-        >
-          {isSubmitting ? (
-            <>
-              <span className="animate-spin">⏳</span>
-              <span>Yuborilmoqda...</span>
-            </>
-          ) : (
-            <span>Tasdiqlash — {formatPrice(total)}</span>
-          )}
-        </motion.button>
       </div>
     </div>
   );

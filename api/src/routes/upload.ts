@@ -1,37 +1,52 @@
-import { Router } from 'express';
-import { supabase } from '../lib/supabase';
-import { authMiddleware, adminMiddleware } from '../middleware/auth';
-import { asyncHandler } from '../middleware/error';
+import { Router } from "express";
+import { z } from "zod";
+import { HttpError } from "../lib/errors";
+import { supabase } from "../lib/supabase";
+import { adminMiddleware, authMiddleware } from "../middleware/auth";
+import { asyncHandler } from "../middleware/error";
 
 const router = Router();
 
-// POST /api/upload — Admin only image upload to Supabase Storage
-router.post('/', authMiddleware, adminMiddleware, asyncHandler(async (req, res) => {
-  const { fileName, fileBase64, mimeType } = req.body;
+const UploadSchema = z.object({
+  fileBase64: z.string().min(1),
+  fileName: z.string().trim().min(1),
+  mimeType: z.string().trim().min(1),
+});
 
-  if (!fileName || !fileBase64 || !mimeType) {
-    return res.status(400).json({ error: 'fileName, fileBase64, va mimeType kerak' });
-  }
+router.post(
+  "/",
+  authMiddleware,
+  adminMiddleware,
+  asyncHandler(async (req, res) => {
+    const parsed = UploadSchema.safeParse(req.body);
 
-  // Decode base64 to buffer
-  const buffer = Buffer.from(fileBase64, 'base64');
-  const uniqueName = `${Date.now()}-${fileName}`;
+    if (!parsed.success) {
+      throw new HttpError(400, "Noto'g'ri yuklash ma'lumotlari", parsed.error.flatten());
+    }
 
-  const { data, error } = await supabase.storage
-    .from('product-images')
-    .upload(uniqueName, buffer, {
-      contentType: mimeType,
-      upsert: false,
-    });
+    const base64 = parsed.data.fileBase64.includes(",")
+      ? parsed.data.fileBase64.split(",").pop() ?? ""
+      : parsed.data.fileBase64;
+    const safeFileName = parsed.data.fileName.replace(/\s+/g, "-");
+    const storagePath = `products/${Date.now()}-${safeFileName}`;
 
-  if (error) throw new Error(error.message);
+    const { data, error } = await supabase.storage
+      .from("product-images")
+      .upload(storagePath, Buffer.from(base64, "base64"), {
+        contentType: parsed.data.mimeType,
+        upsert: false,
+      });
 
-  // Get public URL
-  const { data: urlData } = supabase.storage
-    .from('product-images')
-    .getPublicUrl(data.path);
+    if (error || !data) {
+      throw new HttpError(500, "Rasmni yuklashda xatolik");
+    }
 
-  res.status(201).json({ url: urlData.publicUrl });
-}));
+    const { data: publicUrlData } = supabase.storage
+      .from("product-images")
+      .getPublicUrl(data.path);
+
+    res.status(201).json({ url: publicUrlData.publicUrl });
+  }),
+);
 
 export default router;

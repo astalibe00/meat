@@ -1,60 +1,64 @@
-import { motion } from 'framer-motion';
-
+import { useCallback, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 
 interface ToastProps {
   message: string;
-  type?: 'success' | 'error' | 'info';
+  tone: "error" | "info" | "success";
   visible: boolean;
 }
 
-const icons: Record<string, string> = {
-  success: '✅',
-  error: '❌',
-  info: 'ℹ️',
+const toneClasses: Record<ToastProps["tone"], string> = {
+  error: "bg-danger",
+  info: "bg-primary",
+  success: "bg-success",
 };
 
-const colors: Record<string, string> = {
-  success: 'bg-success',
-  error: 'bg-danger',
-  info: 'bg-primary',
-};
-
-export default function Toast({ message, type = 'success', visible }: ToastProps) {
-  if (!visible) return null;
+function Toast({ message, tone, visible }: ToastProps) {
+  if (!visible) {
+    return null;
+  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -40 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -40 }}
-      className={`fixed top-4 left-4 right-4 z-[100] ${colors[type]} text-white px-4 py-3 rounded-2xl shadow-lg flex items-center gap-3`}
+      className={`fixed left-4 right-4 top-4 z-[100] rounded-2xl px-4 py-3 text-sm font-medium text-white shadow-lg ${toneClasses[tone]}`}
+      initial={{ opacity: 0, y: -24 }}
     >
-      <span className="text-lg">{icons[type]}</span>
-      <span className="font-medium text-sm">{message}</span>
+      {message}
     </motion.div>
   );
 }
 
-// Simple toast hook
-import { useState, useCallback } from 'react';
-
 export function useToast() {
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; visible: boolean }>({
-    message: '',
-    type: 'success',
+  const [state, setState] = useState<ToastProps>({
+    message: "",
+    tone: "success",
     visible: false,
   });
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    setToast({ message, type, visible: true });
-    setTimeout(() => {
-      setToast((prev) => ({ ...prev, visible: false }));
-    }, 2500);
-  }, []);
-
-  const ToastComponent = () => (
-    <Toast message={toast.message} type={toast.type} visible={toast.visible} />
+  const showToast = useCallback(
+    (message: string, tone: ToastProps["tone"] = "success") => {
+      setState({ message, tone, visible: true });
+      window.setTimeout(() => {
+        setState((current) => ({ ...current, visible: false }));
+      }, 2500);
+    },
+    [],
   );
 
-  return { showToast, ToastComponent };
+  const ToastComponent = useMemo(
+    () =>
+      function ToastComponentInner() {
+        return (
+          <Toast
+            message={state.message}
+            tone={state.tone}
+            visible={state.visible}
+          />
+        );
+      },
+    [state.message, state.tone, state.visible],
+  );
+
+  return { ToastComponent, showToast };
 }

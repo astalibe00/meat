@@ -1,101 +1,155 @@
-import { Router } from 'express';
-import { z } from 'zod';
-import { supabase } from '../lib/supabase';
-import { authMiddleware } from '../middleware/auth';
-import { asyncHandler } from '../middleware/error';
+import { Router } from "express";
+import { z } from "zod";
+import { HttpError } from "../lib/errors";
+import { supabase } from "../lib/supabase";
+import { authMiddleware } from "../middleware/auth";
+import { asyncHandler } from "../middleware/error";
 
 const router = Router();
 
-// GET /api/cart
-router.get('/', authMiddleware, asyncHandler(async (req, res) => {
-  const { data, error } = await supabase
-    .from('carts')
-    .select('*, products(id, name, price, image_url)')
-    .eq('user_id', req.userId!);
-
-  if (error) throw new Error(error.message);
-  res.json(data);
-}));
-
-const AddCartSchema = z.object({
+const AddCartItemSchema = z.object({
   product_id: z.string().uuid(),
-  quantity: z.number().int().positive().default(1),
+  quantity: z.coerce.number().int().positive().default(1),
 });
 
-// POST /api/cart
-router.post('/', authMiddleware, asyncHandler(async (req, res) => {
-  const parsed = AddCartSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: 'Noto\'g\'ri ma\'lumotlar', details: parsed.error.flatten() });
-  }
+const UpdateCartItemSchema = z.object({
+  quantity: z.coerce.number().int().positive(),
+});
 
-  const { product_id, quantity } = parsed.data;
+router.use(authMiddleware);
 
-  // Upsert: if exists, increment quantity
-  const { data: existing } = await supabase
-    .from('carts')
-    .select('id, quantity')
-    .eq('user_id', req.userId!)
-    .eq('product_id', product_id)
-    .single();
-
-  if (existing) {
+router.get(
+  "/",
+  asyncHandler(async (req, res) => {
     const { data, error } = await supabase
-      .from('carts')
-      .update({ quantity: existing.quantity + quantity })
-      .eq('id', existing.id)
-      .select()
+      .from("carts")
+      .select("id, product_id, quantity, products(id, name, price, image_url, is_available)")
+      .eq("user_id", req.userId!);
+
+    if (error) {
+      throw new HttpError(500, "Savatchani yuklashda xatolik");
+    }
+
+    res.json(data ?? []);
+  }),
+);
+
+router.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    const parsed = AddCartItemSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      throw new HttpError(400, "Noto'g'ri ma'lumotlar", parsed.error.flatten());
+    }
+
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .select("id, is_available")
+      .eq("id", parsed.data.product_id)
       .single();
-    if (error) throw new Error(error.message);
-    return res.json(data);
-  }
 
-  const { data, error } = await supabase
-    .from('carts')
-    .insert({ user_id: req.userId!, product_id, quantity })
-    .select()
-    .single();
+    if (productError || !product || !product.is_available) {
+      throw new HttpError(400, "Mahsulot savatga qo'shib bo'lmaydi");
+    }
 
-  if (error) throw new Error(error.message);
-  res.status(201).json(data);
-}));
+    const { data: existingItem } = await supabase
+      .from("carts")
+      .select("id, quantity")
+      .eq("user_id", req.userId!)
+      .eq("product_id", parsed.data.product_id)
+      .single();
 
-// PATCH /api/cart/:product_id
-router.patch('/:product_id', authMiddleware, asyncHandler(async (req, res) => {
-  const { quantity } = req.body;
-  if (typeof quantity !== 'number' || quantity < 1) {
-    return res.status(400).json({ error: 'Miqdor 1 dan katta bo\'lishi kerak' });
-  }
+    const quantity = existingItem
+      ? existingItem.quantity + parsed.data.quantity
+      : parsed.data.quantity;
 
-  const { data, error } = await supabase
-    .from('carts')
-    .update({ quantity })
-    .eq('user_id', req.userId!)
-    .eq('product_id', req.params.product_id)
-    .select()
-    .single();
+    const { error } = existingItem
+      ? await supabase
+          .from("carts")
+          .update({ quantity })
+          .eq("id", existingItem.id)
+      : await supabase.from("carts").insert({
+          product_id: parsed.data.product_id,
+          quantity,
+          user_id: req.userId!,
+        });
 
-  if (error || !data) return res.status(404).json({ error: 'Savat elementi topilmadi' });
-  res.json(data);
-}));
+    if (error) {
+      throw new HttpError(500, "Savatchani yangilashda xatolik");
+    }
 
-// DELETE /api/cart/:product_id
-router.delete('/:product_id', authMiddleware, asyncHandler(async (req, res) => {
-  const { error } = await supabase
-    .from('carts')
-    .delete()
-    .eq('user_id', req.userId!)
-    .eq('product_id', req.params.product_id);
+    const { data: cartItem, error: cartError } = await supabase
+      .from("carts")
+      .select("id, product_id, quantity, products(id, name, price, image_url, is_available)")
+      .eq("user_id", req.userId!)
+      .eq("product_id", parsed.data.product_id)
+      .single();
 
-  if (error) throw new Error(error.message);
-  res.status(204).send();
-}));
+    if (cartError || !cartItem) {
+      throw new HttpError(500, "Savatcha elementini yuklashda xatolik");
+    }
 
-// DELETE /api/cart — clear entire cart
-router.delete('/', authMiddleware, asyncHandler(async (req, res) => {
-  const { error } = await supabase.from('carts').delete().eq('user_id', req.userId!);
-  if (error) throw new Error(error.message);
-  res.status(204).send();
-}));
+    res.status(existingItem ? 200 : 201).json(cartItem);
+  }),
+);
+
+router.patch(
+  "/:productId",
+  asyncHandler(async (req, res) => {
+    const parsed = UpdateCartItemSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      throw new HttpError(400, "Noto'g'ri ma'lumotlar", parsed.error.flatten());
+    }
+
+    const { data, error } = await supabase
+      .from("carts")
+      .update({ quantity: parsed.data.quantity })
+      .eq("user_id", req.userId!)
+      .eq("product_id", req.params.productId)
+      .select("id, product_id, quantity, products(id, name, price, image_url, is_available)")
+      .single();
+
+    if (error || !data) {
+      throw new HttpError(404, "Savatcha elementi topilmadi");
+    }
+
+    res.json(data);
+  }),
+);
+
+router.delete(
+  "/:productId",
+  asyncHandler(async (req, res) => {
+    const { error } = await supabase
+      .from("carts")
+      .delete()
+      .eq("user_id", req.userId!)
+      .eq("product_id", req.params.productId);
+
+    if (error) {
+      throw new HttpError(500, "Savatcha elementini o'chirishda xatolik");
+    }
+
+    res.status(204).send();
+  }),
+);
+
+router.delete(
+  "/",
+  asyncHandler(async (req, res) => {
+    const { error } = await supabase
+      .from("carts")
+      .delete()
+      .eq("user_id", req.userId!);
+
+    if (error) {
+      throw new HttpError(500, "Savatchani tozalashda xatolik");
+    }
+
+    res.status(204).send();
+  }),
+);
 
 export default router;

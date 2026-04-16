@@ -1,0 +1,47 @@
+import fs from "fs";
+import path from "path";
+import dotenv from "dotenv";
+
+let isLoaded = false;
+
+function loadWorkspaceEnv() {
+  if (isLoaded) {
+    return;
+  }
+
+  const candidates = [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "..", ".env"),
+    path.resolve(__dirname, "../../../.env"),
+    path.resolve(__dirname, "../../../../.env"),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      dotenv.config({ path: candidate });
+      break;
+    }
+  }
+
+  isLoaded = true;
+}
+
+function parseAdminIds(value?: string) {
+  return (value ?? "")
+    .split(",")
+    .map((item) => Number.parseInt(item.trim(), 10))
+    .filter((item) => Number.isSafeInteger(item));
+}
+
+loadWorkspaceEnv();
+
+export const env = {
+  adminIds: parseAdminIds(process.env.ADMIN_TELEGRAM_IDS),
+  botToken: process.env.BOT_TOKEN ?? "",
+  isProduction: (process.env.NODE_ENV ?? "development") === "production",
+  miniAppUrl: process.env.MINI_APP_URL ?? "",
+  nodeEnv: process.env.NODE_ENV ?? "development",
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  supabaseUrl: process.env.SUPABASE_URL ?? "",
+  webhookUrl: process.env.WEBHOOK_URL ?? "",
+};

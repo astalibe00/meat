@@ -1,31 +1,66 @@
-/**
- * Format number as Uzbek sum currency string
- * Example: 25000 → "25 000 so'm"
- */
+import type { OrderStatus } from "./types";
+
 export function formatPrice(price: number): string {
-  return price.toLocaleString('ru-RU').replace(/,/g, ' ') + " so'm";
+  return `${price.toLocaleString("ru-RU")} so'm`;
 }
 
-/**
- * Format short order ID from UUID
- * Example: "a1b2c3d4-..." → "#A1B2C3"
- */
 export function shortId(id: string): string {
-  return '#' + id.slice(0, 6).toUpperCase();
+  return `#${id.slice(0, 6).toUpperCase()}`;
 }
 
-/**
- * Format date as readable Uzbek string
- */
-export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const months = [
-    'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
-    'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr',
-  ];
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const hours = String(date.getHours()).padStart(2, '0');
-  const mins = String(date.getMinutes()).padStart(2, '0');
-  return `${day} ${month}, ${hours}:${mins}`;
+export function formatDate(dateValue: string) {
+  const date = new Date(dateValue);
+
+  return new Intl.DateTimeFormat("uz-UZ", {
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "long",
+  }).format(date);
+}
+
+export function formatDateTime(dateValue: string) {
+  const date = new Date(dateValue);
+
+  return new Intl.DateTimeFormat("uz-UZ", {
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+export function getOrderStatusMeta(status: OrderStatus) {
+  const map: Record<OrderStatus, { label: string; tone: string }> = {
+    accepted: { label: "Tasdiqlandi", tone: "bg-blue-100 text-blue-700" },
+    cancelled: { label: "Bekor qilindi", tone: "bg-danger/10 text-danger" },
+    completed: { label: "Yetkazildi", tone: "bg-success/10 text-success" },
+    delivering: { label: "Yetkazilmoqda", tone: "bg-primary/10 text-primary" },
+    pending: { label: "Qabul qilindi", tone: "bg-warning/10 text-warning" },
+    preparing: { label: "Tayyorlanmoqda", tone: "bg-warning/10 text-warning" },
+  };
+
+  return map[status];
+}
+
+export const orderTimeline = [
+  { key: "pending", label: "Qabul qilindi" },
+  { key: "accepted", label: "Tasdiqlandi" },
+  { key: "preparing", label: "Tayyorlanmoqda" },
+  { key: "delivering", label: "Yo'lda" },
+  { key: "completed", label: "Yetkazildi" },
+] as const;
+
+export function toNumber(value: number | string | null | undefined) {
+  return Number(value ?? 0);
+}
+
+export function fileToBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("Faylni o'qib bo'lmadi"));
+    reader.readAsDataURL(file);
+  });
 }

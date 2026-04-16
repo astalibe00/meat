@@ -1,115 +1,118 @@
-import { Bot, webhookCallback } from "grammy";
-import * as dotenv from "dotenv";
 import express from "express";
+import { Bot, webhookCallback } from "grammy";
+import { registerOrdersCommand } from "./commands/orders";
+import { registerStartCommand } from "./commands/start";
+import { registerStatusCommands } from "./commands/status";
+import { env } from "./lib/env";
 
-dotenv.config();
-
-const token = process.env.BOT_TOKEN || "";
-if (!token) {
-  console.warn("BOT_TOKEN is missing!");
+if (!env.botToken) {
+  throw new Error("BOT_TOKEN is required");
 }
 
-export const bot = new Bot(token);
+export const bot = new Bot(env.botToken);
 
-const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_IDS || '').split(',').map(id => parseInt(id.trim(), 10));
+registerStartCommand(bot);
+registerOrdersCommand(bot);
+registerStatusCommands(bot);
 
-const isAdmin = (ctx: any) => {
-  return ctx.from && ADMIN_IDS.includes(ctx.from.id);
-};
-
-bot.command("start", async (ctx) => {
-  const firstName = ctx.from?.first_name || "Mijoz";
-  await ctx.reply(`Salom ${firstName}! Do'konimizga xush kelibsiz.`, {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: "🛒 Do'konni ochish",
-            web_app: { url: process.env.MINI_APP_URL || "https://example.com" },
-          },
-        ],
-      ],
-    },
-  });
+bot.catch((error) => {
+  console.error("Bot error:", error.error);
 });
 
-bot.command("orders", async (ctx) => {
-  if (!isAdmin(ctx)) {
-    return ctx.reply("⛔ Ruxsat yo'q");
+let webhookPromise: Promise<void> | undefined;
+let pollingStarted = false;
+let startupNotificationSent = false;
+
+async function notifyAdminsOnStartup(mode: "polling" | "webhook") {
+  if (startupNotificationSent || !env.adminIds.length) {
+    return;
   }
 
-  // Implementation will typically query the Supabase DB
-  // For the sake of the bot skeleton, we simulate fetching orders.
-  await ctx.reply("Oxirgi buyurtmalar ro'yxati (bu yerda DB dan olinadi)");
-});
+  startupNotificationSent = true;
 
-bot.command("accept", async (ctx) => {
-  if (!isAdmin(ctx)) {
-    return ctx.reply("⛔ Ruxsat yo'q");
+  const text =
+    mode === "polling"
+      ? "Bot ishlayapti. Rejim: local polling."
+      : "Bot ishlayapti. Rejim: webhook.";
+
+  await Promise.allSettled(
+    env.adminIds.map((adminId) => bot.api.sendMessage(adminId, text)),
+  );
+}
+
+async function ensureWebhook() {
+  if (!env.isProduction || !env.webhookUrl) {
+    return;
   }
 
-  const orderId = ctx.match;
-  if (!orderId) {
-    return ctx.reply("Format: /accept <order_id>");
+  if (!webhookPromise) {
+    webhookPromise = (async () => {
+      const info = await bot.api.getWebhookInfo();
+      if (info.url !== env.webhookUrl) {
+        await bot.api.setWebhook(env.webhookUrl);
+      }
+
+      console.log("Bot ishlayapti. Rejim: webhook.");
+      await notifyAdminsOnStartup("webhook");
+    })().catch((error) => {
+      webhookPromise = undefined;
+      console.error("Webhook registration failed:", error);
+    });
   }
 
-  // Implementation to update DB and notify:
-  // fetch API or direct supabase query
-  await ctx.reply(`Buyurtma ${orderId} qabul qilindi.`);
-});
+  await webhookPromise;
+}
 
-bot.command("deliver", async (ctx) => {
-  if (!isAdmin(ctx)) {
-    return ctx.reply("⛔ Ruxsat yo'q");
-  }
-  const orderId = ctx.match;
-  if (!orderId) {
-    return ctx.reply("Format: /deliver <order_id>");
+let pollingPromise: Promise<void> | undefined;
+
+async function ensurePolling() {
+  if (env.isProduction) {
+    return;
   }
 
-  await ctx.reply(`Buyurtma ${orderId} yetkazilmoqda.`);
-});
+  if (!pollingPromise) {
+    pollingPromise = (async () => {
+      const info = await bot.api.getWebhookInfo();
+      if (info.url) {
+        await bot.api.deleteWebhook({
+          drop_pending_updates: false,
+        });
+      }
 
-bot.command("cancel", async (ctx) => {
-  if (!isAdmin(ctx)) {
-    return ctx.reply("⛔ Ruxsat yo'q");
+      console.log("Bot ishlayapti. Rejim: local polling.");
+      await notifyAdminsOnStartup("polling");
+      void bot.start().catch((error) => {
+        pollingStarted = false;
+        pollingPromise = undefined;
+        console.error("Polling start failed:", error);
+      });
+    })().catch((error) => {
+      pollingStarted = false;
+      pollingPromise = undefined;
+      console.error("Polling start failed:", error);
+    });
   }
-  const orderId = ctx.match;
-  if (!orderId) {
-    return ctx.reply("Format: /cancel <order_id>");
-  }
 
-  await ctx.reply(`Buyurtma ${orderId} bekor qilindi.`);
-});
+  await pollingPromise;
+}
 
-// Notifications
-bot.on("callback_query:data", async (ctx) => {
-  if (!isAdmin(ctx)) return;
-  const data = ctx.callbackQuery.data;
-
-  if (data.startsWith("accept:")) {
-    const orderId = data.split(":")[1];
-    // status update in DB here
-    await ctx.answerCallbackQuery(`Buyurtma ${orderId} qabul qilindi`);
-    await ctx.editMessageReplyMarkup(); // Remove buttons
-  } else if (data.startsWith("cancel:")) {
-    const orderId = data.split(":")[1];
-    await ctx.answerCallbackQuery(`Buyurtma ${orderId} bekor qilinadi`);
-    await ctx.editMessageReplyMarkup(); // Remove buttons
-  }
-});
-
-// For Vercel Serverless
 const app = express();
 app.use(express.json());
 
-// Set up webhook handler
-app.use("/bot/webhook", webhookCallback(bot, "express"));
+app.get("/bot/health", async (_req, res) => {
+  await ensureWebhook();
+  res.json({ status: "ok" });
+});
 
-if (process.env.NODE_ENV !== "production") {
-  // Start polling in development if no webhook is set up
-  bot.start().catch((err) => console.error(err));
-  console.log("Bot started in polling mode");
+if (env.isProduction) {
+  app.post("/bot/webhook", webhookCallback(bot, "express"));
 }
+
+if (!env.isProduction && !pollingStarted) {
+  pollingStarted = true;
+  void ensurePolling();
+}
+
+void ensureWebhook();
 
 export default app;

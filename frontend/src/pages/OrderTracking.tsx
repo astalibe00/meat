@@ -1,138 +1,178 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { formatPrice, shortId } from '../lib/utils';
-
-interface Step {
-  label: string;
-  icon: string;
-  done: boolean;
-  active?: boolean;
-}
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import AuthNotice from "../components/AuthNotice";
+import { useToast } from "../components/Toast";
+import { api } from "../lib/api";
+import { canUseProtectedApi } from "../lib/telegram";
+import { fetchOrder, queryKeys } from "../lib/queries";
+import { supabase } from "../lib/supabase";
+import { formatPrice, orderTimeline, shortId, toNumber } from "../lib/utils";
 
 export default function OrderTracking() {
-  const { id } = useParams();
+  const { id = "" } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const canAccessProtectedApi = canUseProtectedApi();
+  const { ToastComponent, showToast } = useToast();
 
-  // In production: fetch from API + subscribe to Supabase Realtime
-  const steps: Step[] = [
-    { label: 'Qabul qilindi', icon: '📋', done: true },
-    { label: 'Tasdiqlandi', icon: '✅', done: true },
-    { label: 'Tayyorlanmoqda', icon: '👨‍🍳', done: false, active: true },
-    { label: 'Yetkazilmoqda', icon: '🚗', done: false },
-    { label: 'Yetkazildi', icon: '🎉', done: false },
-  ];
+  const orderQuery = useQuery({
+    enabled: canAccessProtectedApi && Boolean(id),
+    queryFn: () => fetchOrder(id),
+    queryKey: queryKeys.order(id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "completed" || status === "cancelled" ? false : 5000;
+    },
+  });
+
+  const reorder = useMutation({
+    mutationFn: () => api.post(`/orders/${id}/reorder`, {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.cart });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.orders });
+      showToast("Buyurtma savatchaga qayta qo'shildi");
+    },
+  });
+
+  useEffect(() => {
+    const realtimeClient = supabase;
+
+    if (!realtimeClient || !id) {
+      return;
+    }
+
+    const channel = realtimeClient
+      .channel(`order-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          filter: `id=eq.${id}`,
+          schema: "public",
+          table: "orders",
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.order(id) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.orders });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void realtimeClient.removeChannel(channel);
+    };
+  }, [id, queryClient]);
+
+  if (!canAccessProtectedApi) {
+    return (
+      <div className="p-4">
+        <AuthNotice title="Kuzatuv yopiq" />
+      </div>
+    );
+  }
+
+  if (orderQuery.isLoading) {
+    return <div className="p-4 text-sm text-textSecondary">Buyurtma yuklanmoqda...</div>;
+  }
+
+  if (!orderQuery.data) {
+    return <div className="p-4 text-sm text-textSecondary">Buyurtma topilmadi.</div>;
+  }
+
+  const order = orderQuery.data;
+  const currentIndex =
+    order.status === "cancelled"
+      ? -1
+      : orderTimeline.findIndex((step) => step.key === order.status);
 
   return (
-    <div className="p-4 bg-bgMain min-h-screen pb-24">
+    <div className="page-wrap space-y-5 p-4 pb-28">
+      <ToastComponent />
       <button
-        onClick={() => navigate('/')}
-        className="mb-4 flex items-center text-primary font-medium text-sm"
+        className="text-sm font-semibold text-primary"
+        onClick={() => navigate(-1)}
+        type="button"
       >
-        ← Bosh sahifa
+        Ortga
       </button>
 
-      <h1 className="text-xl font-bold mb-1 text-textPrimary">
-        Buyurtma {shortId(id || 'demo-123')}
-      </h1>
-      <div className="flex items-center gap-2 mb-6">
-        <span className="inline-flex items-center gap-1 bg-warning/15 text-warning px-3 py-1 rounded-full text-xs font-semibold">
-          <span className="animate-pulse-soft">●</span> Tayyorlanmoqda
-        </span>
-        <span className="text-xs text-textSecondary">~30 daqiqa</span>
+      <div className="hero-panel">
+        <p className="eyebrow">Tracking</p>
+        <h1 className="hero-title text-[2rem]">
+          Buyurtma {shortId(order.id)}
+        </h1>
+        <p className="mt-2 text-sm text-white/80">Taxminiy yetkazish vaqti: ~30 daqiqa</p>
       </div>
 
-      {/* Timeline */}
-      <div className="card p-5 mb-5">
-        <div className="space-y-1">
-          {steps.map((step, idx) => (
-            <motion.div
-              key={step.label}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              className="flex items-stretch"
-            >
-              {/* Left: indicator + line */}
-              <div className="flex flex-col items-center mr-4">
-                <motion.div
-                  initial={step.active ? { scale: 0.8 } : {}}
-                  animate={step.active ? { scale: [1, 1.15, 1] } : {}}
-                  transition={step.active ? { repeat: Infinity, duration: 2 } : {}}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-lg z-10 shrink-0 ${
-                    step.done
-                      ? 'bg-success text-white shadow-sm'
-                      : step.active
-                      ? 'bg-primary text-white shadow-lg ring-4 ring-primary/20'
-                      : 'bg-gray-100 text-gray-400'
-                  }`}
-                >
-                  {step.done ? '✓' : step.icon}
-                </motion.div>
-                {idx !== steps.length - 1 && (
-                  <div
-                    className={`w-0.5 flex-1 min-h-[28px] ${
-                      step.done ? 'bg-success' : 'bg-gray-200'
-                    }`}
-                  />
-                )}
-              </div>
+      <div className="surface-panel">
+        <div className="space-y-4">
+          {orderTimeline.map((step, index) => {
+            const isDone = currentIndex >= index;
+            const isActive = currentIndex === index;
 
-              {/* Right: label */}
-              <div className={`pt-2.5 pb-4 ${idx === steps.length - 1 ? 'pb-0' : ''}`}>
-                <p
-                  className={`font-semibold text-sm ${
-                    step.active
-                      ? 'text-primary'
-                      : step.done
-                      ? 'text-textPrimary'
-                      : 'text-gray-400'
-                  }`}
+            return (
+              <div className="flex items-center gap-3" key={step.key}>
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${
+                    isDone ? "bg-primary text-white" : "bg-surface text-textSecondary"
+                  } ${isActive ? "ring-4 ring-primary/20" : ""}`}
                 >
+                  {index + 1}
+                </div>
+                <span className={isDone ? "font-semibold text-textPrimary" : "text-textSecondary"}>
                   {step.label}
-                </p>
-                {step.active && (
-                  <p className="text-xs text-textSecondary mt-0.5">Hozirda bajarilmoqda...</p>
-                )}
+                </span>
               </div>
-            </motion.div>
-          ))}
+            );
+          })}
+
+          {order.status === "cancelled" ? (
+            <div className="rounded-2xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
+              Buyurtma bekor qilingan.
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {/* Order details */}
-      <div className="card p-5 mb-5">
-        <h3 className="font-bold text-textPrimary border-b border-gray-100 pb-3 mb-3">
-          Buyurtma ma'lumotlari
-        </h3>
-        <div className="space-y-2.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-textSecondary">📍 Manzil</span>
-            <span className="font-medium text-textPrimary">Toshkent shahar</span>
+      <div className="surface-panel">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="section-title">Buyurtma ma'lumotlari</h2>
+          <Link className="chip" to="/orders">
+            Barcha buyurtmalar
+          </Link>
+        </div>
+        <div className="mt-4 space-y-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-textSecondary">Manzil</span>
+            <span className="text-textPrimary">{order.location}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-textSecondary">📞 Telefon</span>
-            <span className="font-medium text-textPrimary">+998 90 123 45 67</span>
+          <div className="flex items-center justify-between">
+            <span className="text-textSecondary">Telefon</span>
+            <span className="text-textPrimary">{order.phone}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-textSecondary">💵 To'lov</span>
-            <span className="font-medium text-textPrimary">Naqd pul</span>
+          <div className="space-y-2 border-t border-black/5 pt-3">
+            {order.items.map((item) => (
+              <div className="flex items-center justify-between" key={`${item.product_id}-${item.name}`}>
+                <span className="text-textSecondary">
+                  {item.name} x{item.quantity}
+                </span>
+                <span className="font-semibold text-textPrimary">
+                  {formatPrice(toNumber(item.price) * item.quantity)}
+                </span>
+              </div>
+            ))}
           </div>
-          <div className="flex justify-between pt-2 border-t border-gray-100">
-            <span className="text-textSecondary font-semibold">💰 Jami</span>
-            <span className="font-bold text-primary text-base">{formatPrice(90000)}</span>
+          <div className="flex items-center justify-between border-t border-black/5 pt-3">
+            <span className="font-semibold text-textPrimary">Jami</span>
+            <span className="text-lg font-bold text-primary">
+              {formatPrice(toNumber(order.total_price))}
+            </span>
           </div>
         </div>
-      </div>
-
-      {/* Help */}
-      <div className="card p-4 bg-primary/5 border-primary/10">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">💬</span>
-          <div>
-            <p className="text-sm font-semibold text-textPrimary">Yordam kerakmi?</p>
-            <p className="text-xs text-textSecondary">Bot orqali biz bilan bog'laning</p>
-          </div>
-        </div>
+        <button className="chip mt-4" onClick={() => reorder.mutate()} type="button">
+          Yana buyurtma
+        </button>
       </div>
     </div>
   );

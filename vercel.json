@@ -3,11 +3,20 @@
   "builds": [
     { "src": "api/src/index.ts", "use": "@vercel/node" },
     { "src": "bot/src/index.ts", "use": "@vercel/node" },
-    { "src": "frontend/package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "api/src/index.ts" },
     { "src": "/bot/(.*)", "dest": "bot/src/index.ts" },
-    { "src": "/(.*)", "dest": "frontend/dist/$1" }
+    { "src": "/assets/(.*)", "dest": "frontend/dist/assets/$1" },
+    {
+      "src": "/(favicon.ico|robots.txt|manifest.webmanifest)",
+      "dest": "frontend/dist/$1"
+    },
+    { "src": "/(.*)", "dest": "frontend/dist/index.html" }
   ]
 }

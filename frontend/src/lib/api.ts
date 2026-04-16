@@ -1,70 +1,99 @@
-import WebApp from '@twa-dev/sdk';
+import { clientEnv } from "./env";
+import { buildTelegramAuthorizationHeader } from "./telegram";
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+export class ApiError extends Error {
+  details?: unknown;
+  status: number;
 
-interface ApiOptions {
-  method?: string;
-  body?: unknown;
-  headers?: Record<string, string>;
+  constructor(message: string, status: number, details?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.details = details;
+    this.status = status;
+  }
+}
+
+async function parseResponseBody(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  return response.text();
 }
 
 class ApiClient {
   private baseUrl: string;
 
   constructor(baseUrl: string) {
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
-  private getHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    // Attach Telegram WebApp initData for authentication
-    try {
-      const initData = WebApp.initData;
-      if (initData) {
-        headers['Authorization'] = `TelegramWebApp ${initData}`;
-      }
-    } catch {
-      // Outside Telegram context (dev mode)
+  private createUrl(endpoint: string) {
+    if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+      return endpoint;
     }
 
-    return headers;
+    return `${this.baseUrl}${endpoint}`;
   }
 
-  async request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-    const { method = 'GET', body } = options;
+  async request<T>(endpoint: string, init: RequestInit = {}) {
+    const headers = new Headers(init.headers ?? {});
+    const authHeader = buildTelegramAuthorizationHeader();
 
-    const res = await fetch(`${this.baseUrl}${endpoint}`, {
-      method,
-      headers: { ...this.getHeaders(), ...options.headers },
-      body: body ? JSON.stringify(body) : undefined,
+    if (authHeader && !headers.has("Authorization")) {
+      headers.set("Authorization", authHeader);
+    }
+
+    if (init.body && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    const response = await fetch(this.createUrl(endpoint), {
+      ...init,
+      headers,
     });
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(errorData.error || `HTTP ${res.status}`);
+    const payload = await parseResponseBody(response);
+
+    if (!response.ok) {
+      const data =
+        typeof payload === "string"
+          ? { error: payload }
+          : (payload as { details?: unknown; error?: string });
+
+      throw new ApiError(
+        data.error || `HTTP ${response.status}`,
+        response.status,
+        data.details,
+      );
     }
 
-    return res.json();
+    return payload as T;
+  }
+
+  delete<T>(endpoint: string) {
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
 
   get<T>(endpoint: string) {
     return this.request<T>(endpoint);
   }
 
-  post<T>(endpoint: string, body: unknown) {
-    return this.request<T>(endpoint, { method: 'POST', body });
-  }
-
   patch<T>(endpoint: string, body: unknown) {
-    return this.request<T>(endpoint, { method: 'PATCH', body });
+    return this.request<T>(endpoint, {
+      body: JSON.stringify(body),
+      method: "PATCH",
+    });
   }
 
-  delete<T>(endpoint: string) {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+  post<T>(endpoint: string, body: unknown) {
+    return this.request<T>(endpoint, {
+      body: JSON.stringify(body),
+      method: "POST",
+    });
   }
 }
 
-export const api = new ApiClient(BASE_URL);
+export const api = new ApiClient(clientEnv.apiBaseUrl);

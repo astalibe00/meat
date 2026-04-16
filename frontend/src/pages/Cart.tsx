@@ -1,117 +1,170 @@
-import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useCartStore } from '../store/useCartStore';
-import { formatPrice } from '../lib/utils';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import AuthNotice from "../components/AuthNotice";
+import { ListSkeleton } from "../components/Skeleton";
+import { useToast } from "../components/Toast";
+import { api } from "../lib/api";
+import { canUseProtectedApi } from "../lib/telegram";
+import { fetchCart, queryKeys } from "../lib/queries";
+import { formatPrice, toNumber } from "../lib/utils";
 
 export default function Cart() {
-  const { items, updateQuantity, removeItem, getTotal, clearCart } = useCartStore();
+  const queryClient = useQueryClient();
+  const { ToastComponent, showToast } = useToast();
+  const canAccessProtectedApi = canUseProtectedApi();
 
-  if (items.length === 0) {
+  const cartQuery = useQuery({
+    enabled: canAccessProtectedApi,
+    queryFn: fetchCart,
+    queryKey: queryKeys.cart,
+  });
+
+  const updateQuantity = useMutation({
+    mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
+      api.patch(`/cart/${productId}`, { quantity }),
+    onError: (error) => {
+      showToast(error instanceof Error ? error.message : "Savatchani yangilab bo'lmadi", "error");
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
+    },
+  });
+
+  const removeItem = useMutation({
+    mutationFn: (productId: string) => api.delete(`/cart/${productId}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
+    },
+  });
+
+  const clearCart = useMutation({
+    mutationFn: () => api.delete("/cart"),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
+    },
+  });
+
+  if (!canAccessProtectedApi) {
     return (
-      <div className="p-4 flex flex-col items-center justify-center min-h-[70vh]">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-center"
-        >
-          <p className="text-6xl mb-4">🛒</p>
-          <h2 className="text-xl font-bold text-textPrimary mb-2">Savatcha bo'sh</h2>
-          <p className="text-textSecondary text-sm mb-6">
-            Mahsulotlarni ko'rib chiqing va savatga qo'shing
-          </p>
-          <Link
-            to="/products"
-            className="inline-block bg-primary text-white px-8 py-3 rounded-2xl font-bold shadow-md hover:bg-primary-dark transition-colors"
-          >
-            Mahsulotlarni ko'rish
-          </Link>
-        </motion.div>
+      <div className="p-4">
+        <AuthNotice title="Savatcha yopiq" />
       </div>
     );
   }
 
+  const items = cartQuery.data ?? [];
+  const total = items.reduce(
+    (sum, item) => sum + toNumber(item.products?.price) * item.quantity,
+    0,
+  );
+
   return (
-    <div className="p-4 pb-44">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold text-textPrimary">Savatcha</h1>
-        <button
-          onClick={clearCart}
-          className="text-sm text-danger font-medium hover:underline"
-        >
-          Tozalash
-        </button>
+    <div className="page-wrap space-y-4 p-4 pb-40">
+      <ToastComponent />
+
+      <div className="hero-panel">
+        <p className="eyebrow">Savatcha</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="hero-title text-[2rem]">Buyurtma uchun tayyor</h1>
+            <p className="mt-2 text-sm text-white/80">Taxminiy yetkazish vaqti: ~30 daqiqa</p>
+          </div>
+          {items.length ? (
+            <button
+              className="chip bg-white/14 text-white"
+              onClick={() => clearCart.mutate()}
+              type="button"
+            >
+              Tozalash
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      <AnimatePresence>
-        <div className="space-y-3">
-          {items.map((item) => (
-            <motion.div
-              key={item.product_id}
-              layout
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20, height: 0 }}
-              className="card p-3"
-            >
-              <div className="flex gap-3">
-                <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center text-2xl shrink-0">
-                  🍽
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-semibold text-sm text-textPrimary truncate pr-2">{item.name}</h3>
-                    <button
-                      onClick={() => removeItem(item.product_id)}
-                      className="text-textSecondary hover:text-danger transition-colors shrink-0"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <p className="text-primary font-bold text-sm mt-1">
-                    {formatPrice(item.price)}
+      {cartQuery.isLoading ? <ListSkeleton /> : null}
+
+      {!cartQuery.isLoading && !items.length ? (
+        <div className="surface-panel text-sm text-textSecondary">
+          Savatcha bo'sh. Mahsulot qo'shish uchun mahsulotlar sahifasiga o'ting.
+        </div>
+      ) : null}
+
+      <div className="space-y-3">
+        {items.map((item) => (
+          <div className="surface-panel" key={item.id}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                {item.products?.image_url ? (
+                  <img
+                    alt={item.products?.name ?? "Mahsulot"}
+                    className="h-16 w-16 rounded-[20px] object-cover"
+                    src={item.products.image_url}
+                  />
+                ) : null}
+                <div>
+                  <h2 className="text-sm font-semibold text-textPrimary">
+                    {item.products?.name ?? "Mahsulot"}
+                  </h2>
+                  <p className="mt-1 text-sm text-primary">
+                    {formatPrice(toNumber(item.products?.price))}
                   </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
-                      className="w-7 h-7 bg-gray-100 rounded-full font-bold text-sm flex items-center justify-center hover:bg-gray-200 transition-colors"
-                    >
-                      −
-                    </motion.button>
-                    <span className="w-6 text-center font-semibold text-sm">{item.quantity}</span>
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
-                      className="w-7 h-7 bg-primary text-white rounded-full font-bold text-sm flex items-center justify-center hover:bg-primary-dark transition-colors"
-                    >
-                      +
-                    </motion.button>
-                    <span className="ml-auto text-sm font-bold text-textPrimary">
-                      {formatPrice(item.price * item.quantity)}
-                    </span>
-                  </div>
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </div>
-      </AnimatePresence>
+              <button
+                className="text-sm font-semibold text-danger"
+                onClick={() => removeItem.mutate(item.product_id)}
+                type="button"
+              >
+                O'chirish
+              </button>
+            </div>
 
-      {/* Bottom summary */}
-      <div className="fixed bottom-20 left-0 w-full p-4 glass border-t border-gray-200/50">
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-textSecondary font-medium">Jami:</span>
-          <span className="text-xl font-bold text-textPrimary">{formatPrice(getTotal())}</span>
-        </div>
-        <Link to="/checkout">
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            className="btn-primary"
-          >
-            Buyurtma berish
-          </motion.button>
-        </Link>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-lg font-bold"
+                onClick={() =>
+                  updateQuantity.mutate({
+                    productId: item.product_id,
+                    quantity: Math.max(1, item.quantity - 1),
+                  })
+                }
+                type="button"
+              >
+                -
+              </button>
+              <span className="font-semibold text-textPrimary">{item.quantity}</span>
+              <button
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-lg font-bold text-white"
+                onClick={() =>
+                  updateQuantity.mutate({
+                    productId: item.product_id,
+                    quantity: item.quantity + 1,
+                  })
+                }
+                type="button"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
+
+      {items.length ? (
+        <div className="nav-shell fixed bottom-3 left-1/2 z-40 flex w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 border-none p-4">
+          <div className="w-full">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm text-textSecondary">Jami</span>
+              <span className="text-lg font-bold text-textPrimary">
+                {formatPrice(total)}
+              </span>
+            </div>
+            <Link className="btn-primary flex items-center justify-center" to="/checkout">
+              Buyurtma berish
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,75 +1,142 @@
--- Enable necessary extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- USERS TABLE
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   telegram_id BIGINT UNIQUE NOT NULL,
   first_name TEXT NOT NULL,
   last_name TEXT,
   username TEXT,
   phone TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  default_address TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- CATEGORIES TABLE
-CREATE TABLE categories (
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS default_address TEXT,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   icon TEXT,
-  sort_order INT DEFAULT 0
+  sort_order INT NOT NULL DEFAULT 0
 );
 
--- PRODUCTS TABLE
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
   price NUMERIC(10,2) NOT NULL,
   category_id UUID REFERENCES categories(id),
   image_url TEXT,
-  is_available BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now()
+  is_available BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- CARTS TABLE
-CREATE TABLE carts (
+CREATE TABLE IF NOT EXISTS carts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   quantity INT NOT NULL DEFAULT 1,
   UNIQUE(user_id, product_id)
 );
 
--- ORDERS TABLE
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id),
-  items JSONB NOT NULL,           -- [{product_id, name, price, quantity}]
+  items JSONB NOT NULL,
   total_price NUMERIC(10,2) NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending','accepted','preparing','delivering','completed','cancelled')),
   phone TEXT NOT NULL,
   location TEXT NOT NULL,
-  payment_method TEXT DEFAULT 'cash',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  payment_method TEXT NOT NULL DEFAULT 'cash',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Realtime Setup
--- Function for updating updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_is_available ON products(is_available);
+CREATE INDEX IF NOT EXISTS idx_carts_user_id ON carts(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+
+CREATE OR REPLACE FUNCTION set_orders_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-   NEW.updated_at = now(); 
-   RETURN NEW;
+  NEW.updated_at = now();
+  RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_order_modtime
+CREATE OR REPLACE FUNCTION set_users_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_orders_set_updated_at ON orders;
+CREATE TRIGGER trg_orders_set_updated_at
 BEFORE UPDATE ON orders
-FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+FOR EACH ROW
+EXECUTE FUNCTION set_orders_updated_at();
 
--- Enable RLS and Realtime (For security purposes, basic implementation)
--- In a real app we'd define specific RLS policies. For now, enable Realtime tracking for orders.
-ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+DROP TRIGGER IF EXISTS trg_users_set_updated_at ON users;
+CREATE TRIGGER trg_users_set_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION set_users_updated_at();
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE carts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS categories_public_read ON categories;
+CREATE POLICY categories_public_read
+ON categories
+FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS products_public_read ON products;
+CREATE POLICY products_public_read
+ON products
+FOR SELECT
+USING (is_available = true);
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('product-images', 'product-images', true)
+ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
+
+DROP POLICY IF EXISTS product_images_public_read ON storage.objects;
+CREATE POLICY product_images_public_read
+ON storage.objects
+FOR SELECT
+USING (bucket_id = 'product-images');
+
+DROP POLICY IF EXISTS product_images_service_manage ON storage.objects;
+CREATE POLICY product_images_service_manage
+ON storage.objects
+FOR ALL
+TO service_role
+USING (bucket_id = 'product-images')
+WITH CHECK (bucket_id = 'product-images');
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+  END IF;
+END;
+$$;

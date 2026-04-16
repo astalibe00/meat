@@ -1,49 +1,68 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useCartStore } from '../store/useCartStore';
-import { motion } from 'framer-motion';
+import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import { canUseProtectedApi } from "../lib/telegram";
+import { fetchCart, queryKeys } from "../lib/queries";
+
+const icons: Record<string, string> = {
+  "/": "⌂",
+  "/cart": "◔",
+  "/orders": "≡",
+  "/products": "▦",
+};
 
 export default function Navigation() {
   const location = useLocation();
-  const path = location.pathname;
-  const itemCount = useCartStore((s) => s.getItemCount());
+  const canAccessCart = canUseProtectedApi();
+  const cartQuery = useQuery({
+    enabled: canAccessCart,
+    queryFn: fetchCart,
+    queryKey: queryKeys.cart,
+    retry: false,
+    staleTime: 30_000,
+  });
 
-  const navItems = [
-    { name: 'Asosiy', path: '/', icon: '🏠' },
-    { name: 'Mahsulotlar', path: '/products', icon: '🗂' },
-    { name: 'Savatcha', path: '/cart', icon: '🛒', badge: itemCount },
-    { name: 'Buyurtmalar', path: '/orders', icon: '🧾' },
+  const itemCount =
+    cartQuery.data?.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+
+  const items = [
+    { label: "Asosiy", path: "/" },
+    { label: "Mahsulotlar", path: "/products" },
+    { label: "Savatcha", path: "/cart", badge: itemCount },
+    { label: "Buyurtmalar", path: "/orders" },
   ];
 
   return (
-    <nav className="fixed bottom-0 w-full glass border-t border-gray-200/50 px-2 py-2 flex justify-around items-center z-50">
-      {navItems.map((item) => {
-        const isActive = item.path === '/' ? path === '/' : path.startsWith(item.path);
+    <nav className="nav-shell fixed bottom-3 left-1/2 z-50 flex w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 items-center justify-around px-2 py-2">
+      {items.map((item) => {
+        const isActive =
+          item.path === "/"
+            ? location.pathname === item.path
+            : location.pathname.startsWith(item.path);
+
         return (
           <Link
-            key={item.name}
+            className="relative flex min-w-[72px] flex-col items-center rounded-xl px-3 py-2 text-xs font-semibold"
+            key={item.path}
             to={item.path}
-            className="relative flex flex-col items-center px-3 py-1 rounded-xl transition-all duration-200"
           >
-            {isActive && (
-              <motion.div
+            {isActive ? (
+              <motion.span
+                className="absolute inset-0 rounded-xl bg-primary/10"
                 layoutId="nav-indicator"
-                className="absolute inset-0 bg-primary/10 rounded-xl"
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
-            )}
-            <span className="text-xl relative z-10">
-              {item.icon}
-              {item.badge ? (
-                <span className="absolute -top-1 -right-2 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {item.badge > 9 ? '9+' : item.badge}
-                </span>
-              ) : null}
+            ) : null}
+            <span className={`relative z-10 text-sm ${isActive ? "text-primary" : "text-textSecondary"}`}>
+              {icons[item.path]}
             </span>
-            <span className={`text-[10px] font-semibold mt-0.5 relative z-10 ${
-              isActive ? 'text-primary' : 'text-textSecondary'
-            }`}>
-              {item.name}
+            <span className={`relative z-10 mt-1 ${isActive ? "text-primary" : "text-textSecondary"}`}>
+              {item.label}
             </span>
+            {item.badge ? (
+              <span className="absolute right-2 top-1 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-white">
+                {item.badge > 9 ? "9+" : item.badge}
+              </span>
+            ) : null}
           </Link>
         );
       })}
