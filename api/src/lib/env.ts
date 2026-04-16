@@ -45,7 +45,31 @@ function parseOrigin(url?: string) {
   }
 }
 
+function resolveVercelBaseUrl() {
+  const candidate =
+    process.env.MINI_APP_URL ??
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+    process.env.VERCEL_BRANCH_URL ??
+    process.env.VERCEL_URL;
+
+  if (!candidate) {
+    return "";
+  }
+
+  const normalized = /^https?:\/\//i.test(candidate)
+    ? candidate
+    : `https://${candidate}`;
+
+  try {
+    return new URL(normalized).toString();
+  } catch {
+    return "";
+  }
+}
+
 loadWorkspaceEnv();
+
+const resolvedMiniAppUrl = process.env.MINI_APP_URL || resolveVercelBaseUrl();
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
@@ -53,8 +77,8 @@ export const env = {
   botToken: process.env.BOT_TOKEN ?? "",
   webhookUrl: process.env.WEBHOOK_URL ?? "",
   channelId: process.env.CHANNEL_ID ?? "",
-  miniAppUrl: process.env.MINI_APP_URL ?? "",
-  allowedOrigin: parseOrigin(process.env.MINI_APP_URL),
+  miniAppUrl: resolvedMiniAppUrl,
+  allowedOrigin: parseOrigin(resolvedMiniAppUrl),
   adminIds: parseAdminIds(process.env.ADMIN_TELEGRAM_IDS),
   supabaseUrl: process.env.SUPABASE_URL ?? "",
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",
