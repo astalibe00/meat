@@ -19,6 +19,7 @@ interface TelegramOrderPayload {
   }>;
   location: string;
   phone: string;
+  status?: string;
   total_price: number | string;
   users?: {
     first_name?: string | null;
@@ -26,6 +27,19 @@ interface TelegramOrderPayload {
     telegram_id?: number | null;
     username?: string | null;
   } | null;
+}
+
+interface TelegramSupportPayload {
+  category: string;
+  details: string;
+  id: string;
+  order_id?: string | null;
+  user: {
+    first_name: string;
+    phone?: string | null;
+    telegram_id: number;
+    username?: string | null;
+  };
 }
 
 interface TelegramProductPayload {
@@ -66,39 +80,83 @@ function buildMiniAppUrl(startParam?: string) {
   return url.toString();
 }
 
+function sleep(timeoutMs: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, timeoutMs);
+  });
+}
+
 async function telegramRequest(method: string, body: Record<string, unknown>) {
   if (!env.botToken) {
-    return;
+    return null;
   }
 
-  const response = await fetch(`https://api.telegram.org/bot${env.botToken}/${method}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  let lastError: Error | undefined;
 
-  const payload = (await response.json()) as {
-    description?: string;
-    ok: boolean;
-  };
+  for (const delay of [0, 300, 900]) {
+    try {
+      if (delay) {
+        await sleep(delay);
+      }
 
-  if (!response.ok || !payload.ok) {
-    throw new Error(payload.description ?? `Telegram request failed: ${method}`);
+      const response = await fetch(`https://api.telegram.org/bot${env.botToken}/${method}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const payload = (await response.json()) as {
+        description?: string;
+        ok: boolean;
+        result?: unknown;
+      };
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.description ?? `Telegram request failed: ${method}`);
+      }
+
+      return payload.result ?? null;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Telegram request failed");
+    }
   }
+
+  throw lastError ?? new Error("Telegram request failed");
+}
+
+function buildCustomerOrderKeyboard(orderId: string) {
+  const miniAppOrderUrl = buildMiniAppUrl(`order_${orderId}`);
+  const miniAppOrdersUrl = buildMiniAppUrl("orders");
+  const keyboard: InlineKeyboardButton[][] = [];
+
+  if (miniAppOrderUrl) {
+    keyboard.push([{ text: "Mini App'da ochish", web_app: { url: miniAppOrderUrl } }]);
+  }
+
+  keyboard.push([
+    { text: "Kuzatish", callback_data: `buyer:track:${orderId}` },
+    { text: "Qayta buyurtma", callback_data: `buyer:reorder:${orderId}` },
+  ]);
+
+  if (miniAppOrdersUrl) {
+    keyboard.push([{ text: "Barcha buyurtmalar", web_app: { url: miniAppOrdersUrl } }]);
+  }
+
+  return { inline_keyboard: keyboard };
 }
 
 export function buildStatusMessage(status: OrderStatus, orderId: string) {
   const orderLabel = `Buyurtma #${shortId(orderId)}`;
 
   const messageMap: Record<OrderStatus, string> = {
-    accepted: `Buyurtmangiz tasdiqlandi.\n\n${orderLabel}`,
-    cancelled: `Buyurtmangiz bekor qilindi.\n\n${orderLabel}`,
-    completed: `Buyurtmangiz yetkazildi.\n\n${orderLabel}`,
-    delivering: `Buyurtmangiz yetkazilmoqda.\n\n${orderLabel}`,
-    pending: `Buyurtmangiz qabul qilindi.\n\n${orderLabel}`,
-    preparing: `Buyurtmangiz tayyorlanmoqda.\n\n${orderLabel}`,
+    accepted: `Buyurtmangiz tasdiqlandi.\n\n${orderLabel}\nSeller mahsulotni tayyorlashga o'tdi.`,
+    cancelled: `Buyurtmangiz bekor qilindi.\n\n${orderLabel}\nKerak bo'lsa support orqali murojaat qiling.`,
+    completed: `Buyurtmangiz yetkazildi.\n\n${orderLabel}\nYana buyurtma berish uchun tugmadan foydalaning.`,
+    delivering: `Buyurtmangiz yo'lda.\n\n${orderLabel}\nYetkazish bosqichi boshlandi.`,
+    pending: `Buyurtmangiz qabul qilindi.\n\n${orderLabel}\nSeller tasdiqlashi kutilmoqda.`,
+    preparing: `Buyurtmangiz tayyorlanmoqda.\n\n${orderLabel}\nQadoqlash bosqichi davom etmoqda.`,
   };
 
   return messageMap[status];
@@ -157,7 +215,10 @@ export async function notifyAdminsAboutNewOrder(order: TelegramOrderPayload) {
         { text: "Qabul qilish", callback_data: `status:${order.id}:accepted` },
         { text: "Bekor qilish", callback_data: `status:${order.id}:cancelled` },
       ],
-    ],
+      buildMiniAppUrl("admin")
+        ? [{ text: "Admin panel", web_app: { url: buildMiniAppUrl("admin") } }]
+        : [],
+    ].filter((row) => row.length > 0),
   };
 
   for (const adminId of env.adminIds) {
@@ -171,7 +232,41 @@ export async function notifyCustomerAboutStatus(order: TelegramOrderPayload, sta
     return;
   }
 
-  await sendTelegramMessage(telegramId, buildStatusMessage(status, order.id));
+  await sendTelegramMessage(
+    telegramId,
+    buildStatusMessage(status, order.id),
+    buildCustomerOrderKeyboard(order.id),
+  );
+}
+
+export async function notifyAdminsAboutSupportTicket(ticket: TelegramSupportPayload) {
+  if (!env.adminIds.length) {
+    return;
+  }
+
+  const ticketUrl = buildMiniAppUrl(ticket.order_id ? `order_${ticket.order_id}` : "profile");
+  const text = [
+    "Yangi support so'rovi",
+    "",
+    `Ticket: #${ticket.id}`,
+    `Mijoz: ${ticket.user.first_name}${ticket.user.username ? ` (@${ticket.user.username})` : ""}`,
+    `Telegram ID: ${ticket.user.telegram_id}`,
+    `Telefon: ${ticket.user.phone ?? "yo'q"}`,
+    `Kategoriya: ${ticket.category}`,
+    ...(ticket.order_id ? [`Buyurtma: #${shortId(ticket.order_id)}`] : []),
+    "",
+    ticket.details,
+  ].join("\n");
+
+  const keyboard = ticketUrl
+    ? {
+        inline_keyboard: [[{ text: "Mini App'da ochish", web_app: { url: ticketUrl } }]],
+      }
+    : undefined;
+
+  for (const adminId of env.adminIds) {
+    await sendTelegramMessage(adminId, text, keyboard);
+  }
 }
 
 export async function publishProductToChannel(product: TelegramProductPayload) {

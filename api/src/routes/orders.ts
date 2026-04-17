@@ -6,6 +6,8 @@ import { asyncHandler } from "../middleware/error";
 import {
   createOrderForUser,
   getOrderForUser,
+  getOrderTrackingForUser,
+  listActiveOrdersForUser,
   listOrdersForUser,
   reorderOrderForUser,
 } from "../services/orders";
@@ -41,10 +43,26 @@ router.post(
 );
 
 router.get(
+  "/active",
+  asyncHandler(async (req, res) => {
+    const orders = await listActiveOrdersForUser(req.userId!);
+    res.json(orders);
+  }),
+);
+
+router.get(
   "/",
   asyncHandler(async (req, res) => {
     const orders = await listOrdersForUser(req.userId!);
     res.json(orders);
+  }),
+);
+
+router.get(
+  "/:id/tracking",
+  asyncHandler(async (req, res) => {
+    const tracking = await getOrderTrackingForUser(req.userId!, req.params.id);
+    res.json(tracking);
   }),
 );
 

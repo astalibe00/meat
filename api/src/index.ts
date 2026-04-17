@@ -8,6 +8,7 @@ import categoriesRouter from "./routes/categories";
 import meRouter from "./routes/me";
 import ordersRouter from "./routes/orders";
 import productsRouter from "./routes/products";
+import supportRouter from "./routes/support";
 import uploadRouter from "./routes/upload";
 
 const app = express();
@@ -47,6 +48,7 @@ app.use("/api/products", productsRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/me", meRouter);
+app.use("/api/support", supportRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/admin/upload", uploadRouter);
 app.use("/api/upload", uploadRouter);

@@ -3,8 +3,8 @@ import { ensureAdmin } from "../lib/admin";
 import { buildStatusKeyboard, formatAdminOrder } from "../lib/messages";
 import { listRecentAdminOrders } from "../services/orders";
 
-export function registerOrdersCommand(bot: Bot) {
-  bot.command("orders", async (ctx) => {
+export function registerAdminOrdersCommand(bot: Bot) {
+  bot.command("admin_orders", async (ctx) => {
     if (!(await ensureAdmin(ctx))) {
       return;
     }

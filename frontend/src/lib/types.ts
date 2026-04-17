@@ -104,3 +104,11 @@ export interface AdminDashboard {
   today_revenue: number;
   top_products: TopProductAnalytics[];
 }
+
+export interface SupportTicket {
+  category: string;
+  id: string;
+  message?: string;
+  order_id?: string | null;
+  status: string;
+}

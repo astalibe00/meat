@@ -5,6 +5,7 @@ import type {
   Category,
   Order,
   Product,
+  SupportTicket,
   TopProductAnalytics,
   UserProfile,
 } from "./types";
@@ -36,6 +37,7 @@ export const queryKeys = {
   profile: ["me"] as const,
   products: (categoryId?: string, search?: string) =>
     ["products", categoryId ?? "all", search ?? ""] as const,
+  support: ["support"] as const,
 };
 
 export function fetchCategories() {
@@ -69,6 +71,10 @@ export function fetchOrder(id: string) {
 
 export function fetchProfile() {
   return api.get<UserProfile>("/me");
+}
+
+export function fetchSupportTickets() {
+  return api.get<SupportTicket[]>("/support");
 }
 
 export function fetchAdminDashboard() {

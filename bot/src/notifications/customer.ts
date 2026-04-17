@@ -1,5 +1,6 @@
 import type { Bot } from "grammy";
-import { formatStatusMessage } from "../lib/messages";
+import { buildBuyerOrderKeyboard, formatStatusMessage } from "../lib/messages";
+import { env } from "../lib/env";
 import type { OrderStatus } from "../services/orders";
 
 export async function notifyCustomer(
@@ -17,5 +18,7 @@ export async function notifyCustomer(
     return;
   }
 
-  await bot.api.sendMessage(telegramId, formatStatusMessage(status, order.id));
+  await bot.api.sendMessage(telegramId, formatStatusMessage(status, order.id), {
+    reply_markup: buildBuyerOrderKeyboard(order.id, env.miniAppUrl),
+  });
 }

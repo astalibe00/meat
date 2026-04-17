@@ -1,10 +1,11 @@
 import { HttpError } from "../lib/errors";
+import { isMissingTableError } from "../lib/optional-db";
 import {
   notifyAdminsAboutNewOrder,
   notifyCustomerAboutStatus,
 } from "../lib/telegram-bot";
 import { supabase } from "../lib/supabase";
-import { getUserProfileById, updateUserProfile } from "./users";
+import { updateUserProfile } from "./users";
 
 export const ORDER_STATUSES = [
   "pending",
@@ -17,8 +18,53 @@ export const ORDER_STATUSES = [
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
+const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  accepted: ["preparing", "delivering", "cancelled"],
+  cancelled: [],
+  completed: [],
+  delivering: ["completed"],
+  pending: ["accepted", "cancelled"],
+  preparing: ["delivering", "cancelled"],
+};
+
+export const ORDER_TIMELINE = [
+  { description: "Buyurtma qabul qilindi va sellerga yuborildi.", key: "pending", label: "Qabul qilindi" },
+  { description: "Seller buyurtmani tasdiqladi.", key: "accepted", label: "Tasdiqlandi" },
+  { description: "Mahsulot tayyorlanmoqda va qadoqlanmoqda.", key: "preparing", label: "Tayyorlanmoqda" },
+  { description: "Buyurtma yo'lga chiqdi.", key: "delivering", label: "Yetkazilmoqda" },
+  { description: "Buyurtma muvaffaqiyatli yakunlandi.", key: "completed", label: "Yetkazildi" },
+] as const;
+
 function toNumber(value: number | string) {
   return Number(value);
+}
+
+async function recordOrderStatusHistory(input: {
+  fromStatus?: OrderStatus;
+  orderId: string;
+  source: string;
+  toStatus: OrderStatus;
+}) {
+  const { error } = await supabase.from("order_status_history").insert({
+    from_status: input.fromStatus ?? null,
+    order_id: input.orderId,
+    source: input.source,
+    to_status: input.toStatus,
+  });
+
+  if (error && !isMissingTableError(error, "order_status_history")) {
+    console.error("order_status_history insert failed:", error);
+  }
+}
+
+function emitOperationalEvent(name: string, payload: Record<string, unknown>) {
+  console.log(
+    JSON.stringify({
+      event: name,
+      payload,
+      timestamp: new Date().toISOString(),
+    }),
+  );
 }
 
 async function fetchOrderWithUser(orderId: string) {
@@ -33,6 +79,17 @@ async function fetchOrderWithUser(orderId: string) {
   }
 
   return data;
+}
+
+export function getOrderTimelineSnapshot(status: OrderStatus) {
+  const currentIndex =
+    status === "cancelled" ? -1 : ORDER_TIMELINE.findIndex((item) => item.key === status);
+
+  return ORDER_TIMELINE.map((step, index) => ({
+    ...step,
+    active: currentIndex === index,
+    done: currentIndex >= index,
+  }));
 }
 
 export async function createOrderForUser(input: {
@@ -81,6 +138,7 @@ export async function createOrderForUser(input: {
       location: input.location,
       payment_method: input.paymentMethod,
       phone: input.phone,
+      status: "pending",
       total_price: totalPrice,
       user_id: input.userId,
     })
@@ -95,6 +153,17 @@ export async function createOrderForUser(input: {
   await updateUserProfile(input.userId, {
     default_address: input.location,
     phone: input.phone,
+  });
+
+  await recordOrderStatusHistory({
+    orderId: createdOrder.id,
+    source: "checkout",
+    toStatus: "pending",
+  });
+
+  emitOperationalEvent("order_created", {
+    order_id: createdOrder.id,
+    user_id: input.userId,
   });
 
   const order = await fetchOrderWithUser(createdOrder.id);
@@ -120,6 +189,21 @@ export async function listOrdersForUser(userId: string) {
   return data ?? [];
 }
 
+export async function listActiveOrdersForUser(userId: string) {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("user_id", userId)
+    .in("status", ["pending", "accepted", "preparing", "delivering"])
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new HttpError(500, "Faol buyurtmalarni yuklashda xatolik");
+  }
+
+  return data ?? [];
+}
+
 export async function getOrderForUser(userId: string, orderId: string) {
   const { data, error } = await supabase
     .from("orders")
@@ -133,6 +217,19 @@ export async function getOrderForUser(userId: string, orderId: string) {
   }
 
   return data;
+}
+
+export async function getOrderTrackingForUser(userId: string, orderId: string) {
+  const order = await getOrderForUser(userId, orderId);
+  const timeline = getOrderTimelineSnapshot(order.status as OrderStatus);
+
+  return {
+    eta_label: order.status === "delivering" ? "~30 daqiqa" : "Tayyorlanmoqda",
+    order,
+    payment_status: order.payment_method === "cash" ? "to'lov yetkazilganda" : "online",
+    seller_label: "Verified seller",
+    timeline,
+  };
 }
 
 export async function reorderOrderForUser(userId: string, orderId: string) {
@@ -170,6 +267,11 @@ export async function reorderOrderForUser(userId: string, orderId: string) {
     throw new HttpError(500, "Qayta buyurtma yaratib bo'lmadi");
   }
 
+  emitOperationalEvent("order_reordered", {
+    order_id: order.id,
+    user_id: userId,
+  });
+
   return order;
 }
 
@@ -193,7 +295,23 @@ export async function listAdminOrders(limit = 10, statuses?: OrderStatus[]) {
   return data ?? [];
 }
 
-export async function updateOrderStatus(orderId: string, status: OrderStatus) {
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  source = "admin",
+) {
+  const currentOrder = await fetchOrderWithUser(orderId);
+  const previousStatus = currentOrder.status as OrderStatus;
+
+  if (previousStatus === status) {
+    return currentOrder;
+  }
+
+  const allowedStatuses = ORDER_TRANSITIONS[previousStatus] ?? [];
+  if (previousStatus && allowedStatuses.length && !allowedStatuses.includes(status)) {
+    throw new HttpError(400, "Bu holatdan tanlangan statusga o'tib bo'lmaydi");
+  }
+
   const { error } = await supabase
     .from("orders")
     .update({
@@ -205,6 +323,20 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus) {
   if (error) {
     throw new HttpError(500, "Buyurtma holatini yangilashda xatolik");
   }
+
+  await recordOrderStatusHistory({
+    fromStatus: previousStatus,
+    orderId,
+    source,
+    toStatus: status,
+  });
+
+  emitOperationalEvent("order_status_changed", {
+    from_status: previousStatus,
+    order_id: orderId,
+    source,
+    to_status: status,
+  });
 
   const order = await fetchOrderWithUser(orderId);
 

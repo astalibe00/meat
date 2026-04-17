@@ -1,6 +1,7 @@
 import express from "express";
 import { Bot, webhookCallback } from "grammy";
-import { registerOrdersCommand } from "./commands/orders";
+import { registerBuyerCommands } from "./commands/buyer";
+import { registerAdminOrdersCommand } from "./commands/orders";
 import { registerStartCommand } from "./commands/start";
 import { registerStatusCommands } from "./commands/status";
 import { env } from "./lib/env";
@@ -12,7 +13,8 @@ if (!env.botToken) {
 export const bot = new Bot(env.botToken);
 
 registerStartCommand(bot);
-registerOrdersCommand(bot);
+registerBuyerCommands(bot);
+registerAdminOrdersCommand(bot);
 registerStatusCommands(bot);
 
 bot.catch(async (error) => {
@@ -47,12 +49,23 @@ async function ensureBotSurface() {
   surfacePromise = (async () => {
     const userCommands = [
       { command: "start", description: "Botni ishga tushirish" },
+      { command: "shop", description: "Do'konni ochish" },
+      { command: "catalog", description: "Katalog preview" },
+      { command: "cart", description: "Savatchani ko'rish" },
+      { command: "orders", description: "Buyurtmalarim" },
+      { command: "track", description: "Buyurtmani kuzatish" },
+      { command: "reorder", description: "Qayta buyurtma" },
+      { command: "favorites", description: "Sevimli mahsulotlar" },
+      { command: "support", description: "Support so'rovi" },
+      { command: "language", description: "Tilni tanlash" },
+      { command: "help", description: "Yordam" },
+      { command: "wholesale", description: "Wholesale" },
       { command: "profile", description: "Profilni ko'rish" },
       { command: "address", description: "Manzilni yangilash" },
     ];
     const adminCommands = [
       ...userCommands,
-      { command: "orders", description: "Buyurtmalar ro'yxati" },
+      { command: "admin_orders", description: "Admin buyurtmalar" },
       { command: "accept", description: "Buyurtmani qabul qilish" },
       { command: "prepare", description: "Buyurtmani tayyorlash" },
       { command: "deliver", description: "Buyurtmani yetkazishga yuborish" },

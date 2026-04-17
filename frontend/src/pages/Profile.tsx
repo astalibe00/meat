@@ -114,9 +114,14 @@ export default function Profile() {
                 <p className="eyebrow text-primary">Quick stats</p>
                 <h2 className="section-title">Mini App activity</h2>
               </div>
-              <Link className="chip" to="/orders">
-                Buyurtmalar
-              </Link>
+              <div className="flex gap-2">
+                <Link className="chip" to="/orders">
+                  Buyurtmalar
+                </Link>
+                <Link className="chip" to="/favorites">
+                  Favorites
+                </Link>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -154,6 +159,17 @@ export default function Profile() {
                 <span className="text-sm font-semibold text-textPrimary">{item}</span>
               </label>
             ))}
+
+            <div className="grid gap-3 pt-2 md:grid-cols-2">
+              <Link className="feature-card" to="/support">
+                <p className="eyebrow text-dark">Support</p>
+                <p className="mt-2 text-lg font-black text-textPrimary">Operator bilan bog'lanish</p>
+              </Link>
+              <Link className="feature-card" to="/wholesale">
+                <p className="eyebrow text-dark">Wholesale</p>
+                <p className="mt-2 text-lg font-black text-textPrimary">Biznes uchun so'rov</p>
+              </Link>
+            </div>
           </section>
         </div>
       </div>
