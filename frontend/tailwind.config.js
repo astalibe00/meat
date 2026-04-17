@@ -5,9 +5,11 @@ export default {
     extend: {
       colors: {
         bgMain: "rgb(var(--color-bg-main) / <alpha-value>)",
+        dark: "rgb(var(--color-dark) / <alpha-value>)",
         danger: "rgb(var(--color-danger) / <alpha-value>)",
         primary: "rgb(var(--color-primary) / <alpha-value>)",
         "primary-dark": "rgb(var(--color-primary-dark) / <alpha-value>)",
+        "primary-soft": "rgb(var(--color-primary-soft) / <alpha-value>)",
         surface: "rgb(var(--color-surface) / <alpha-value>)",
         success: "rgb(var(--color-success) / <alpha-value>)",
         textPrimary: "rgb(var(--color-text-primary) / <alpha-value>)",

@@ -62,7 +62,7 @@ function AppShell() {
   const isAdminRoute = location.pathname.startsWith("/admin");
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-24">
       <LaunchHandler />
       <PageTransition>
         <Routes>

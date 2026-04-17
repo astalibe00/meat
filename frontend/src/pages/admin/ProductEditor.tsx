@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AdminLayout from "../../components/AdminLayout";
 import { useToast } from "../../components/Toast";
 import { api } from "../../lib/api";
+import { getMarketplaceProductMeta } from "../../lib/marketplace";
 import { fetchAdminCategories, fetchAdminProduct, queryKeys } from "../../lib/queries";
+import type { Product } from "../../lib/types";
 import { fileToBase64, formatPrice } from "../../lib/utils";
 
 type SaveMode = "publish" | "save_and_continue" | "save_hidden";
@@ -71,14 +73,22 @@ export default function AdminProductEditor() {
     });
   }, [productQuery.data]);
 
-  const selectedCategory = useMemo(
-    () => categoriesQuery.data?.find((category) => category.id === form.category_id),
-    [categoriesQuery.data, form.category_id],
-  );
-
+  const selectedCategory = categoriesQuery.data?.find((category) => category.id === form.category_id);
   const productAppLink = getProductAppLink(id);
   const productPreviewLink = getProductPreviewLink(id);
   const normalizedPrice = Number(form.price || 0);
+
+  const previewProduct: Product = {
+    categories: selectedCategory ?? null,
+    category_id: form.category_id || null,
+    description: form.description,
+    id: id ?? "preview-product",
+    image_url: form.image_url || null,
+    is_available: form.is_available,
+    name: form.name || "Mahsulot nomi",
+    price: normalizedPrice || 0,
+  };
+  const previewMeta = getMarketplaceProductMeta(previewProduct);
 
   function validateForm() {
     if (form.name.trim().length < 2) {
@@ -198,32 +208,34 @@ export default function AdminProductEditor() {
           ) : null}
         </div>
       }
-      description="Mahsulot kartochkasi uchun nom, tavsif, narx, kategoriya, rasm, ko'rinish holati va preview shu yerda boshqariladi."
+      description="Mahsulot kartochkasini yaratish, preview qilish va publish oqimini bitta workspace ichida boshqaring."
       title={isEditing ? "Mahsulotni tahrirlash" : "Yangi mahsulot"}
     >
       <ToastComponent />
 
-      <div className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
-        <div className="surface-panel space-y-4">
-          <div className="grid gap-4 sm:grid-cols-[1.4fr_0.6fr]">
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <section className="section-shell space-y-4">
+          <div>
+            <p className="eyebrow text-primary">Content editor</p>
+            <h2 className="section-title">Kartochka ma'lumotlari</h2>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-[1.35fr_0.65fr]">
             <div>
               <label className="mb-2 block text-sm font-bold text-textPrimary">Mahsulot nomi</label>
               <input
                 className="input-field"
                 onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                placeholder="Masalan: Mix grill set"
+                placeholder="Masalan: Premium mol go'shti"
                 value={form.name}
               />
             </div>
-
             <div>
               <label className="mb-2 block text-sm font-bold text-textPrimary">Narx</label>
               <input
                 className="input-field"
                 min="0"
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, price: event.target.value }))
-                }
+                onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))}
                 type="number"
                 value={form.price}
               />
@@ -234,22 +246,18 @@ export default function AdminProductEditor() {
             <label className="mb-2 block text-sm font-bold text-textPrimary">Tavsif</label>
             <textarea
               className="input-field min-h-32 resize-none"
-              onChange={(event) =>
-                setForm((current) => ({ ...current, description: event.target.value }))
-              }
-              placeholder="Taom tarkibi, porsiya, sous yoki yetkazish bo'yicha qisqa izoh yozing."
+              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+              placeholder="Sifat, kesim, qadoqlash, kelib chiqish va delivery haqida qisqa professional matn yozing."
               value={form.description}
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-bold text-textPrimary">Kategoriya</label>
               <select
                 className="input-field"
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, category_id: event.target.value }))
-                }
+                onChange={(event) => setForm((current) => ({ ...current, category_id: event.target.value }))}
                 value={form.category_id}
               >
                 <option value="">Tanlanmagan</option>
@@ -262,21 +270,17 @@ export default function AdminProductEditor() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-bold text-textPrimary">Holati</label>
-              <div className="flex h-[50px] items-center rounded-[22px] border border-black/10 bg-bgMain/70 px-4">
-                <label className="flex items-center gap-3">
-                  <input
-                    checked={form.is_available}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, is_available: event.target.checked }))
-                    }
-                    type="checkbox"
-                  />
-                  <span className="text-sm font-semibold text-textPrimary">
-                    Katalogda ko'rinsin
-                  </span>
-                </label>
-              </div>
+              <label className="mb-2 block text-sm font-bold text-textPrimary">Katalog holati</label>
+              <label className="flex h-[50px] items-center gap-3 rounded-[22px] border border-black/10 bg-bgMain/70 px-4">
+                <input
+                  checked={form.is_available}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, is_available: event.target.checked }))
+                  }
+                  type="checkbox"
+                />
+                <span className="text-sm font-semibold text-textPrimary">Katalogda ko'rinsin</span>
+              </label>
             </div>
           </div>
 
@@ -314,29 +318,39 @@ export default function AdminProductEditor() {
                     setForm((current) => ({ ...current, image_url: response.url }));
                     showToast("Rasm yuklandi");
                   } catch (error) {
-                    showToast(
-                      error instanceof Error ? error.message : "Rasm yuklanmadi",
-                      "error",
-                    );
+                    showToast(error instanceof Error ? error.message : "Rasm yuklanmadi", "error");
                   }
                 }}
                 type="file"
               />
               <input
                 className="input-field"
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, image_url: event.target.value }))
-                }
+                onChange={(event) => setForm((current) => ({ ...current, image_url: event.target.value }))}
                 placeholder="Yoki rasm URL kiriting"
                 value={form.image_url}
               />
             </div>
           </div>
 
-          <div className="rounded-[24px] bg-bgMain/70 p-4 text-sm text-textSecondary">
-            {isEditing
-              ? "Tahrirlangan mahsulot katalogda darhol yangilanadi."
-              : "Yangi mahsulot yaratilganda kanal integratsiyasi yoqilgan bo'lsa post avtomatik yuboriladi."}
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="feature-card">
+              <p className="eyebrow text-dark">Card logic</p>
+              <p className="mt-2 text-sm leading-6 text-textSecondary">
+                Narx, nom va kategoriya product card ustunligini belgilaydi.
+              </p>
+            </div>
+            <div className="feature-card">
+              <p className="eyebrow text-dark">Trust layer</p>
+              <p className="mt-2 text-sm leading-6 text-textSecondary">
+                Halal, cold chain va MOQ signallari previewda avtomatik ko'rinadi.
+              </p>
+            </div>
+            <div className="feature-card">
+              <p className="eyebrow text-dark">Distribution</p>
+              <p className="mt-2 text-sm leading-6 text-textSecondary">
+                Saqlangach public preview va Mini App deep link ishlaydi.
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -409,61 +423,84 @@ export default function AdminProductEditor() {
               </>
             ) : null}
           </div>
-        </div>
+        </section>
 
-        <div className="surface-panel">
-          <p className="eyebrow text-primary">Jonli preview</p>
-          <h2 className="section-title">Kartochka ko'rinishi</h2>
+        <div className="space-y-5">
+          <section className="section-shell">
+            <p className="eyebrow text-primary">Live preview</p>
+            <h2 className="section-title">Mini App kartochkasi</h2>
 
-          <div className="mt-4 rounded-[28px] bg-bgMain p-4">
-            {form.image_url ? (
-              <img
-                alt={form.name || "Preview"}
-                className="h-56 w-full rounded-[24px] object-cover"
-                src={form.image_url}
-              />
-            ) : (
-              <div className="flex h-56 items-center justify-center rounded-[24px] bg-primary/10 text-4xl font-black text-primary">
-                {(form.name || "M").slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <div className="mt-4 rounded-[28px] bg-bgMain p-4">
+              {form.image_url ? (
+                <img
+                  alt={form.name || "Preview"}
+                  className="h-56 w-full rounded-[24px] object-cover"
+                  src={form.image_url}
+                />
+              ) : (
+                <div className="flex h-56 items-center justify-center rounded-[24px] bg-primary/10 text-4xl font-black text-primary">
+                  {(form.name || "M").slice(0, 1).toUpperCase()}
+                </div>
+              )}
 
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-textSecondary">
-                  {selectedCategory?.name ?? "Kategoriya tanlanmagan"}
-                </p>
-                <h3 className="mt-2 text-xl font-black text-textPrimary">
-                  {form.name || "Mahsulot nomi"}
-                </h3>
-              </div>
-              <span className="chip">{form.is_available ? "Faol" : "Yashirin"}</span>
-            </div>
-
-            <p className="mt-3 text-sm leading-6 text-textSecondary">
-              {form.description || "Qisqa tavsif shu yerda ko'rinadi."}
-            </p>
-
-            <div className="mt-4 soft-divider" />
-
-            <div className="mt-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-textSecondary">
-                  Narx
-                </p>
-                <span className="text-xl font-black text-primary">
-                  {formatPrice(normalizedPrice)}
+              <div className="mt-4 flex items-start justify-between gap-3">
+                <div>
+                  <p className="eyebrow text-primary">{previewMeta.sellerName}</p>
+                  <h3 className="mt-2 text-2xl font-black text-textPrimary">
+                    {form.name || "Mahsulot nomi"}
+                  </h3>
+                </div>
+                <span className={form.is_available ? "badge-success" : "badge-danger"}>
+                  {form.is_available ? "Faol" : "Yashirin"}
                 </span>
               </div>
-              <span className="chip">~30 daqiqa</span>
-            </div>
-          </div>
 
-          <div className="mt-4 space-y-2 rounded-[24px] bg-bgMain/70 p-4 text-sm text-textSecondary">
-            <p>Majburiy maydonlar: nom va narx.</p>
-            <p>Rasm, tavsif va kategoriya mahsulot kartochkasini kuchaytiradi.</p>
-            {isEditing ? <p>Saqlangach public preview va Mini App link ishlaydi.</p> : null}
-          </div>
+              <p className="mt-3 text-sm leading-6 text-textSecondary">
+                {form.description || "Qisqa tavsif shu yerda ko'rinadi."}
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="badge-soft">{selectedCategory?.name ?? "Kategoriya tanlanmagan"}</span>
+                <span className="badge-soft">{previewMeta.minimumOrderLabel}</span>
+                <span className="badge-success">{previewMeta.stockLabel}</span>
+              </div>
+
+              <div className="soft-divider mt-4" />
+
+              <div className="mt-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-textSecondary">Narx</p>
+                  <span className="text-2xl font-black text-primary">
+                    {formatPrice(normalizedPrice)}
+                  </span>
+                </div>
+                <span className="badge-soft">{previewMeta.unitLabel}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="section-shell">
+            <p className="eyebrow text-primary">Marketplace metadata</p>
+            <h2 className="section-title">Avtomatik signallar</h2>
+            <div className="mt-4 grid gap-3">
+              <div className="feature-card">
+                <p className="text-xs uppercase tracking-[0.16em] text-textSecondary">Seller</p>
+                <p className="mt-2 text-lg font-black text-textPrimary">{previewMeta.sellerName}</p>
+              </div>
+              <div className="feature-card">
+                <p className="text-xs uppercase tracking-[0.16em] text-textSecondary">Trust</p>
+                <p className="mt-2 text-sm leading-6 text-textSecondary">
+                  Halal, cold chain, veterinary checked, MOQ va rating preview orqali ko'rinadi.
+                </p>
+              </div>
+              <div className="feature-card">
+                <p className="text-xs uppercase tracking-[0.16em] text-textSecondary">Wholesale</p>
+                <p className="mt-2 text-sm leading-6 text-textSecondary">
+                  {previewMeta.wholesaleTiers.map((tier) => tier.label).join(", ")}
+                </p>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </AdminLayout>

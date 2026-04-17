@@ -33,8 +33,8 @@ const transitions: Record<OrderStatus, OrderStatus[]> = {
 
 const statusLabels: Record<OrderStatus, string> = {
   accepted: "Tasdiqlandi",
-  cancelled: "Bekor qilindi",
-  completed: "Yakunlandi",
+  cancelled: "Bekor qilish",
+  completed: "Yakunlash",
   delivering: "Yo'lda",
   pending: "Qabul qilish",
   preparing: "Tayyorlanmoqda",
@@ -62,15 +62,15 @@ export default function AdminOrders() {
 
   return (
     <AdminLayout
-      description="Operator uchun eng tez oqim: filtrlang, oching, bir tugma bilan statusni almashtiring."
+      description="Operator oqimi uchun optimallashtirilgan board: filtrlang, tafsilotni ko'ring va statusni bir tegishda almashtiring."
       title="Buyurtmalar"
     >
       <ToastComponent />
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="admin-shelf flex gap-2 overflow-x-auto pb-1">
         {filters.map((filter) => (
           <button
-            className={`chip ${statusFilter === filter.value ? "bg-primary text-white" : ""}`}
+            className={`filter-chip ${statusFilter === filter.value ? "active" : ""}`}
             key={filter.label}
             onClick={() => setStatusFilter(filter.value)}
             type="button"
@@ -85,48 +85,50 @@ export default function AdminOrders() {
           const status = getOrderStatusMeta(order.status);
 
           return (
-          <div className="surface-panel" key={order.id}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-lg font-black text-textPrimary">
-                  Buyurtma {shortId(order.id)}
-                </p>
-                <p className="mt-1 text-sm text-textSecondary">
-                  {formatDateTime(order.created_at)}
-                </p>
-                <p className="mt-3 text-sm text-textSecondary">
-                  {order.items.map((item) => `${item.name} x${item.quantity}`).join(", ")}
-                </p>
+            <div className="section-shell" key={order.id}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-2xl font-black text-textPrimary">Buyurtma {shortId(order.id)}</p>
+                  <p className="mt-1 text-sm text-textSecondary">{formatDateTime(order.created_at)}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`chip ${status.tone}`}>{status.label}</span>
+                  <p className="mt-3 text-lg font-black text-primary">
+                    {formatPrice(toNumber(order.total_price))}
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <span className={`chip ${status.tone}`}>{status.label}</span>
-                <p className="mt-3 text-lg font-black text-primary">
-                  {formatPrice(toNumber(order.total_price))}
-                </p>
+
+              <div className="mt-4 grid gap-3 xl:grid-cols-[1fr_0.95fr]">
+                <div className="feature-card">
+                  <p className="text-xs uppercase tracking-[0.18em] text-textSecondary">Tarkib</p>
+                  <p className="mt-2 text-sm leading-6 text-textSecondary">
+                    {order.items.map((item) => `${item.name} x${item.quantity}`).join(", ")}
+                  </p>
+                </div>
+                <div className="feature-card">
+                  <p className="text-xs uppercase tracking-[0.18em] text-textSecondary">Mijoz</p>
+                  <p className="mt-2 text-sm leading-6 text-textSecondary">
+                    {order.users?.first_name ?? "Mijoz"} {order.users?.last_name ?? ""}
+                  </p>
+                  <p className="mt-2 text-sm text-textSecondary">{order.phone}</p>
+                  <p className="mt-2 text-sm text-textSecondary">{order.location}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {transitions[order.status].map((nextStatus) => (
+                  <button
+                    className="chip"
+                    key={nextStatus}
+                    onClick={() => updateStatus.mutate({ id: order.id, status: nextStatus })}
+                    type="button"
+                  >
+                    {statusLabels[nextStatus]}
+                  </button>
+                ))}
               </div>
             </div>
-
-            <div className="mt-4 grid gap-2 text-sm text-textSecondary">
-              <p>Manzil: {order.location}</p>
-              <p>Telefon: {order.phone}</p>
-              <p>
-                Mijoz: {order.users?.first_name ?? "Mijoz"} {order.users?.last_name ?? ""}
-              </p>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {transitions[order.status].map((status) => (
-                <button
-                  className="chip"
-                  key={status}
-                  onClick={() => updateStatus.mutate({ id: order.id, status })}
-                  type="button"
-                >
-                  {statusLabels[status]}
-                </button>
-              ))}
-            </div>
-          </div>
           );
         })}
       </div>
