@@ -1,45 +1,69 @@
-import { useState, useMemo } from "react";
-import { ChevronLeft, BadgeCheck, Heart, Share2, Flame, Truck, Shield, Clock, Plus } from "lucide-react";
-import { useApp } from "@/store/useApp";
-import { getProductById, getRelatedProducts } from "@/data/products";
+import { useMemo, useState } from "react";
+import {
+  BadgeCheck,
+  ChevronLeft,
+  Flame,
+  Heart,
+  Plus,
+  Share2,
+  Shield,
+  Truck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ProductBadge } from "@/components/app/ProductBadge";
-import { QtyStepper } from "@/components/app/QtyStepper";
 import { ProductCard } from "@/components/app/ProductCard";
+import { QtyStepper } from "@/components/app/QtyStepper";
 import { SectionHeader } from "@/components/app/SectionHeader";
+import { getProductById, getRelatedProducts } from "@/data/products";
+import { useApp } from "@/store/useApp";
 
 export function ProductDetailScreen() {
-  const screen = useApp((s) => s.screen);
-  const back = useApp((s) => s.back);
-  const addToCart = useApp((s) => s.addToCart);
-  const navigate = useApp((s) => s.navigate);
-  const isFav = useApp((s) => s.favorites.includes(screen.name === "product" ? screen.id : ""));
-  const toggleFavorite = useApp((s) => s.toggleFavorite);
+  const screen = useApp((state) => state.screen);
+  const back = useApp((state) => state.back);
+  const addToCart = useApp((state) => state.addToCart);
+  const navigate = useApp((state) => state.navigate);
+  const toggleFavorite = useApp((state) => state.toggleFavorite);
+  const favorites = useApp((state) => state.favorites);
 
-  const id = screen.name === "product" ? screen.id : "";
-  const product = getProductById(id);
-  const [qty, setQty] = useState(1);
+  const productId = screen.name === "product" ? screen.id : "";
+  const product = getProductById(productId);
+  const isFavorite = favorites.includes(productId);
+  const [quantity, setQuantity] = useState(1);
   const [weight, setWeight] = useState<string | undefined>(product?.weightOptions?.[0]);
+  const related = useMemo(() => getRelatedProducts(productId, 4), [productId]);
 
-  const related = useMemo(() => getRelatedProducts(id, 4), [id]);
+  if (!product) {
+    return null;
+  }
 
-  if (!product) return null;
+  const onSale = Boolean(product.oldPrice);
+  const savings = onSale ? (product.oldPrice! - product.price) * quantity : 0;
 
-  const onSale = !!product.oldPrice;
-  const savings = onSale ? (product.oldPrice! - product.price) * qty : 0;
-
-  const onAdd = () => {
-    addToCart(product, qty, weight);
-    toast.success(`Added ${qty} × ${product.name}`, {
-      description: weight ? `${weight} · $${(product.price * qty).toFixed(2)}` : `$${(product.price * qty).toFixed(2)}`,
+  const handleAdd = () => {
+    addToCart(product, quantity, weight);
+    toast.success(`Added ${quantity} x ${product.name}`, {
+      description: `${weight ?? product.weight} - $${(product.price * quantity).toFixed(2)}`,
       duration: 1700,
     });
-    back();
+    navigate({ name: "cart" });
+  };
+
+  const handleShare = async () => {
+    const message = `${product.name} - $${product.price.toFixed(2)} at Fresh Halal Direct`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: product.name, text: message });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(message);
+      }
+      toast.success("Product details copied");
+    } catch {
+      toast.error("Share was cancelled");
+    }
   };
 
   return (
     <div className="animate-screen-in pb-32 bg-background min-h-full">
-      {/* Hero image */}
       <div className="relative bg-paper aspect-[4/3.6]">
         <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background/30 via-transparent to-transparent" />
@@ -54,15 +78,16 @@ export function ProductDetailScreen() {
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           <button
             onClick={() => toggleFavorite(product.id)}
-            aria-label="Favorite"
+            aria-label="Save"
             className="tap w-10 h-10 rounded-full bg-surface/95 backdrop-blur grid place-items-center shadow-card active:scale-90 transition-transform"
           >
             <Heart
-              className={`w-4 h-4 ${isFav ? "fill-sale text-sale" : "text-foreground/70"}`}
+              className={`w-4 h-4 ${isFavorite ? "fill-sale text-sale" : "text-foreground/70"}`}
               strokeWidth={2.5}
             />
           </button>
           <button
+            onClick={handleShare}
             aria-label="Share"
             className="tap w-10 h-10 rounded-full bg-surface/95 backdrop-blur grid place-items-center shadow-card active:scale-90 transition-transform"
           >
@@ -71,31 +96,32 @@ export function ProductDetailScreen() {
         </div>
         {onSale && (
           <div className="absolute bottom-4 left-4">
-            <ProductBadge label={`Save $${savings.toFixed(2)}`} variant="Sale" className="!h-7 !px-3 !text-xs" />
+            <ProductBadge
+              label={`Save $${savings.toFixed(2)}`}
+              variant="Sale"
+              className="!h-7 !px-3 !text-xs"
+            />
           </div>
         )}
       </div>
 
-      {/* Body sheet */}
       <div className="bg-surface -mt-5 rounded-t-3xl px-5 pt-5 relative shadow-elevated">
-        {/* Pull handle */}
         <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-foreground/15" />
 
-        {/* Tags */}
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {product.tags.map((t) => (
-            <ProductBadge key={t} label={t} />
+          {product.tags.map((tag) => (
+            <ProductBadge key={tag} label={tag} />
           ))}
         </div>
 
-        {/* Title + price */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <h1 className="font-serif text-[26px] leading-[1.05] font-semibold tracking-tight text-balance">
               {product.name}
             </h1>
             <p className="text-xs text-muted-foreground mt-1.5">
-              {product.weight} {product.origin && <>· {product.origin}</>}
+              {product.weight}
+              {product.origin ? ` - ${product.origin}` : ""}
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -110,22 +136,20 @@ export function ProductDetailScreen() {
           </div>
         </div>
 
-        {/* Halal trust card */}
         <div className="mt-5 p-4 rounded-2xl bg-foreground text-background">
           <div className="flex items-center gap-3">
             <span className="w-9 h-9 rounded-full bg-primary text-primary-foreground grid place-items-center shrink-0">
               <BadgeCheck className="w-5 h-5" strokeWidth={2.5} />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-bold">100% Certified Halal</p>
+              <p className="text-sm font-bold">100% halal certified</p>
               <p className="text-[11px] text-background/70 leading-tight mt-0.5">
-                HMC certified · Hand-slaughtered · Hand-trimmed
+                Halal certified - hand-trimmed - packed for same-day delivery
               </p>
             </div>
           </div>
         </div>
 
-        {/* Weight options */}
         {product.weightOptions && product.weightOptions.length > 1 && (
           <div className="mt-5">
             <div className="flex items-center justify-between mb-2.5">
@@ -135,24 +159,23 @@ export function ProductDetailScreen() {
               <p className="text-[11px] text-muted-foreground">{weight}</p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {product.weightOptions.map((w) => (
+              {product.weightOptions.map((option) => (
                 <button
-                  key={w}
-                  onClick={() => setWeight(w)}
+                  key={option}
+                  onClick={() => setWeight(option)}
                   className={`tap h-11 px-5 rounded-full text-sm font-bold border-2 active:scale-95 transition-all ${
-                    weight === w
+                    weight === option
                       ? "bg-foreground text-background border-foreground"
                       : "bg-surface text-foreground border-border"
                   }`}
                 >
-                  {w}
+                  {option}
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Description */}
         <div className="mt-6">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">
             About this cut
@@ -160,32 +183,31 @@ export function ProductDetailScreen() {
           <p className="text-[14px] text-foreground/85 leading-relaxed">{product.description}</p>
         </div>
 
-        {/* Trust bullets */}
         <div className="mt-5 grid grid-cols-3 gap-2">
           <TrustBullet Icon={Flame} label="Cut to order" sub={product.prepTime ?? "Fresh"} />
           <TrustBullet Icon={Truck} label="Same-day" sub="Order by 2pm" />
-          <TrustBullet Icon={Shield} label="Quality" sub="Money back" />
+          <TrustBullet Icon={Shield} label="Quality" sub="Money-back promise" />
         </div>
 
-        {/* Quantity */}
         <div className="mt-6 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">
               Quantity
             </p>
-            <p className="text-xs text-muted-foreground">{qty} × ${product.price.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">
+              {quantity} x ${product.price.toFixed(2)}
+            </p>
           </div>
-          <QtyStepper value={qty} onChange={setQty} min={1} max={20} size="lg" />
+          <QtyStepper value={quantity} onChange={setQuantity} min={1} max={20} size="lg" />
         </div>
 
-        {/* Related */}
         {related.length > 0 && (
           <div className="mt-7 -mx-5">
             <SectionHeader eyebrow="You might also like" title="Pair it with" />
             <div className="overflow-x-auto no-scrollbar">
               <div className="flex gap-3 px-5 pb-1">
-                {related.map((p) => (
-                  <ProductCard key={p.id} product={p} variant="horizontal" />
+                {related.map((item) => (
+                  <ProductCard key={item.id} product={item} variant="horizontal" />
                 ))}
               </div>
             </div>
@@ -193,10 +215,9 @@ export function ProductDetailScreen() {
         )}
       </div>
 
-      {/* Sticky CTA */}
       <div className="absolute left-0 right-0 bottom-0 px-4 pb-4 pt-3 bg-surface border-t border-border">
         <button
-          onClick={onAdd}
+          onClick={handleAdd}
           className="tap w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5"
         >
           <span className="flex items-center gap-2.5">
@@ -205,7 +226,7 @@ export function ProductDetailScreen() {
             </span>
             Add to cart
           </span>
-          <span className="tabular-nums">${(product.price * qty).toFixed(2)}</span>
+          <span className="tabular-nums">${(product.price * quantity).toFixed(2)}</span>
         </button>
       </div>
     </div>

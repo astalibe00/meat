@@ -1,32 +1,46 @@
 import { useMemo, useState } from "react";
-import { Search, X, Clock, TrendingUp, SearchX } from "lucide-react";
-import { useApp } from "@/store/useApp";
-import { CATEGORIES, PRODUCTS } from "@/data/products";
-import { ProductCard } from "@/components/app/ProductCard";
+import { Clock, Search, SearchX, TrendingUp, X } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
+import { ProductCard } from "@/components/app/ProductCard";
+import { CATEGORIES, PRODUCTS } from "@/data/products";
+import { useApp } from "@/store/useApp";
 
-const POPULAR_QUERIES = ["Ribeye", "Lamb chops", "Whole chicken", "Wings", "Family box", "Salmon"];
+const POPULAR_QUERIES = [
+  "Ribeye",
+  "Lamb chops",
+  "Whole chicken",
+  "Wings",
+  "Family box",
+  "Salmon",
+];
 
 export function SearchScreen() {
-  const recent = useApp((s) => s.recentSearches);
-  const pushRecent = useApp((s) => s.pushRecentSearch);
-  const clearRecent = useApp((s) => s.clearRecentSearches);
-  const navigate = useApp((s) => s.navigate);
-  const [q, setQ] = useState("");
+  const recentSearches = useApp((state) => state.recentSearches);
+  const pushRecentSearch = useApp((state) => state.pushRecentSearch);
+  const clearRecentSearches = useApp((state) => state.clearRecentSearches);
+  const navigate = useApp((state) => state.navigate);
+  const [query, setQuery] = useState("");
 
   const results = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return [];
-    return PRODUCTS.filter(
-      (p) =>
-        p.name.toLowerCase().includes(term) ||
-        p.tags.some((t) => t.toLowerCase().includes(term)) ||
-        p.category.includes(term) ||
-        p.description.toLowerCase().includes(term)
-    );
-  }, [q]);
+    const term = query.trim().toLowerCase();
+    if (!term) {
+      return [];
+    }
 
-  const onSubmit = () => { if (q.trim()) pushRecent(q.trim()); };
+    return PRODUCTS.filter(
+      (product) =>
+        product.name.toLowerCase().includes(term) ||
+        product.tags.some((tag) => tag.toLowerCase().includes(term)) ||
+        product.category.includes(term) ||
+        product.description.toLowerCase().includes(term),
+    );
+  }, [query]);
+
+  const onSubmit = () => {
+    if (query.trim()) {
+      pushRecentSearch(query.trim());
+    }
+  };
 
   return (
     <div className="animate-screen-in px-5 pt-3 pb-4">
@@ -35,21 +49,23 @@ export function SearchScreen() {
         What are you craving?
       </h1>
 
-      {/* Search input */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" strokeWidth={2.5} />
+        <Search
+          className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+          strokeWidth={2.5}
+        />
         <input
           autoFocus
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
           onBlur={onSubmit}
-          onKeyDown={(e) => e.key === "Enter" && onSubmit()}
-          placeholder="Search beef, lamb, chicken…"
+          onKeyDown={(event) => event.key === "Enter" && onSubmit()}
+          placeholder="Search beef, lamb, chicken..."
           className="w-full h-12 rounded-full bg-surface shadow-card pl-11 pr-12 text-sm font-medium outline-none focus:ring-2 focus:ring-primary border border-border/50"
         />
-        {q && (
+        {query && (
           <button
-            onClick={() => setQ("")}
+            onClick={() => setQuery("")}
             className="tap absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center rounded-full bg-paper active:scale-90 transition-transform"
             aria-label="Clear"
           >
@@ -58,31 +74,30 @@ export function SearchScreen() {
         )}
       </div>
 
-      {/* Empty (no query) */}
-      {!q && (
+      {!query && (
         <div className="mt-6 space-y-6">
-          {recent.length > 0 && (
+          {recentSearches.length > 0 && (
             <section>
               <div className="flex items-center justify-between mb-2.5">
                 <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                   Recent
                 </h2>
                 <button
-                  onClick={clearRecent}
+                  onClick={clearRecentSearches}
                   className="tap text-[11px] font-semibold text-primary active:scale-95 transition-transform"
                 >
                   Clear
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {recent.map((r) => (
+                {recentSearches.map((item) => (
                   <button
-                    key={r}
-                    onClick={() => setQ(r)}
+                    key={item}
+                    onClick={() => setQuery(item)}
                     className="tap inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full bg-surface shadow-xs border border-border/50 text-xs font-semibold active:scale-95 transition-transform"
                   >
                     <Clock className="w-3 h-3 text-muted-foreground" strokeWidth={2.5} />
-                    {r}
+                    {item}
                   </button>
                 ))}
               </div>
@@ -94,14 +109,14 @@ export function SearchScreen() {
               Trending searches
             </h2>
             <div className="flex flex-wrap gap-2">
-              {POPULAR_QUERIES.map((p) => (
+              {POPULAR_QUERIES.map((item) => (
                 <button
-                  key={p}
-                  onClick={() => setQ(p)}
+                  key={item}
+                  onClick={() => setQuery(item)}
                   className="tap inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full bg-primary-soft text-primary-soft-foreground text-xs font-semibold active:scale-95 transition-transform"
                 >
                   <TrendingUp className="w-3 h-3" strokeWidth={2.5} />
-                  {p}
+                  {item}
                 </button>
               ))}
             </div>
@@ -112,14 +127,14 @@ export function SearchScreen() {
               Browse categories
             </h2>
             <div className="grid grid-cols-3 gap-2">
-              {CATEGORIES.map((c) => (
+              {CATEGORIES.map((category) => (
                 <button
-                  key={c.id}
-                  onClick={() => navigate({ name: "categories", category: c.id })}
+                  key={category.id}
+                  onClick={() => navigate({ name: "categories", category: category.id })}
                   className="tap aspect-[4/3] rounded-2xl bg-surface shadow-xs border border-border/40 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
                 >
-                  <span className="text-2xl">{c.emoji}</span>
-                  <span className="text-[11px] font-bold">{c.name}</span>
+                  <span className="text-2xl">{category.emoji}</span>
+                  <span className="text-[11px] font-bold">{category.name}</span>
                 </button>
               ))}
             </div>
@@ -127,27 +142,27 @@ export function SearchScreen() {
         </div>
       )}
 
-      {/* Results */}
-      {q && (
+      {query && (
         <div className="mt-5">
           <p className="text-xs text-muted-foreground mb-3">
             <span className="font-bold tabular-nums text-foreground">{results.length}</span>{" "}
-            result{results.length === 1 ? "" : "s"} for <span className="text-foreground font-semibold">"{q}"</span>
+            result{results.length === 1 ? "" : "s"} for{" "}
+            <span className="text-foreground font-semibold">"{query}"</span>
           </p>
           {results.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
-              {results.map((p) => (
-                <ProductCard key={p.id} product={p} variant="grid" />
+              {results.map((product) => (
+                <ProductCard key={product.id} product={product} variant="grid" />
               ))}
             </div>
           ) : (
             <EmptyState
               icon={<SearchX className="w-9 h-9" strokeWidth={1.75} />}
               title="No matches found"
-              body={`We couldn't find anything for "${q}". Try a different cut or category.`}
+              body={`We could not find anything for "${query}". Try a different cut or category.`}
               action={
                 <button
-                  onClick={() => setQ("")}
+                  onClick={() => setQuery("")}
                   className="tap h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform"
                 >
                   Clear search

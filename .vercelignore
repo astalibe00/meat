@@ -1,0 +1,11 @@
+.git
+.vercel
+node_modules
+dist
+bot
+frontend
+api/dist
+.env
+.env.*
+*.out
+*.err

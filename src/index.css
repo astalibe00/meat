@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* QORIEV'S MEAT — Editorial Butcher Design System
+/* Fresh Halal Direct - Editorial Butcher Design System
    Warm cream surfaces, deep green, refined serif accents.
    All colors MUST be HSL.
 */
@@ -18,7 +18,7 @@
     --sale-red: 358 70% 48%;           /* refined red */
     --gold: 36 55% 52%;                /* subtle gold accent */
 
-    /* Surfaces — editorial cream + paper */
+    /* Surfaces - editorial cream + paper */
     --background: 36 30% 96%;          /* #f5f0e8 warm cream */
     --foreground: 0 0% 10%;            /* near-black ink */
     --surface: 40 30% 99%;             /* paper white */

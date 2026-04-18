@@ -1,33 +1,29 @@
-import { Trash2, ShoppingBag, ShieldCheck, Tag as TagIcon } from "lucide-react";
-import { useApp } from "@/store/useApp";
-import { DELIVERY_FEE, FREE_SHIPPING_THRESHOLD, getCartUpsells } from "@/data/products";
+import { useMemo, useState } from "react";
+import { ShieldCheck, ShoppingBag, Tag as TagIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useMemo } from "react";
-import { QtyStepper } from "@/components/app/QtyStepper";
-import { FreeShipBar } from "@/components/app/FreeShipBar";
 import { EmptyState } from "@/components/app/EmptyState";
+import { FreeShipBar } from "@/components/app/FreeShipBar";
 import { ProductCard } from "@/components/app/ProductCard";
+import { QtyStepper } from "@/components/app/QtyStepper";
 import { SectionHeader } from "@/components/app/SectionHeader";
+import { getCartUpsells } from "@/data/products";
+import { PROMO_OFFERS, getLineId } from "@/lib/commerce";
+import { useApp } from "@/store/useApp";
 
 export function CartScreen() {
-  const cart = useApp((s) => s.cart);
-  const updateQty = useApp((s) => s.updateQty);
-  const removeFromCart = useApp((s) => s.removeFromCart);
-  const navigate = useApp((s) => s.navigate);
-  const subtotal = useApp((s) => s.cartSubtotal());
-  const savings = useApp((s) => s.cartSavings());
+  const cart = useApp((state) => state.cart);
+  const updateQty = useApp((state) => state.updateQty);
+  const removeFromCart = useApp((state) => state.removeFromCart);
+  const navigate = useApp((state) => state.navigate);
+  const pricing = useApp((state) => state.cartPricing());
+  const promoCode = useApp((state) => state.promoCode);
+  const applyPromoCode = useApp((state) => state.applyPromoCode);
+  const clearPromoCode = useApp((state) => state.clearPromoCode);
+  const [promoInput, setPromoInput] = useState(promoCode);
 
   const isEmpty = cart.length === 0;
-  const freeShip = subtotal >= FREE_SHIPPING_THRESHOLD;
-  const delivery = isEmpty ? 0 : freeShip ? 0 : DELIVERY_FEE;
-  const total = subtotal + delivery;
+  const upsells = useMemo(() => getCartUpsells(cart.map((line) => line.product.id), 6), [cart]);
 
-  const upsells = useMemo(
-    () => getCartUpsells(cart.map((l) => l.product.id), 6),
-    [cart]
-  );
-
-  // ----- Empty state -----
   if (isEmpty) {
     return (
       <div className="animate-screen-in px-5 pt-3 pb-4 h-full flex flex-col">
@@ -39,7 +35,7 @@ export function CartScreen() {
             className="my-6"
             icon={<ShoppingBag className="w-9 h-9" strokeWidth={1.75} />}
             title="Your cart is empty"
-            body="Browse our hand-trimmed halal cuts and they'll show up here."
+            body="Browse our hand-trimmed halal cuts and they will show up here."
             action={
               <button
                 onClick={() => navigate({ name: "categories" })}
@@ -50,12 +46,16 @@ export function CartScreen() {
             }
           />
 
-          {/* Recommended even when empty */}
-          <SectionHeader eyebrow="Customer favourites" title="Loved by everyone" inline className="px-5 mt-4" />
+          <SectionHeader
+            eyebrow="Customer favourites"
+            title="Loved by everyone"
+            inline
+            className="px-5 mt-4"
+          />
           <div className="overflow-x-auto no-scrollbar -mx-5">
             <div className="flex gap-3 px-5 pb-2">
-              {upsells.slice(0, 5).map((p) => (
-                <ProductCard key={p.id} product={p} variant="horizontal" />
+              {upsells.slice(0, 5).map((product) => (
+                <ProductCard key={product.id} product={product} variant="horizontal" />
               ))}
             </div>
           </div>
@@ -64,10 +64,18 @@ export function CartScreen() {
     );
   }
 
-  // ----- Filled cart -----
+  const handlePromoApply = (code = promoInput) => {
+    const result = applyPromoCode(code);
+    if (result.ok) {
+      setPromoInput(result.code);
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
+    }
+  };
+
   return (
     <div className="animate-screen-in pb-36">
-      {/* Header */}
       <div className="px-5 pt-3 pb-2 flex items-end justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Review</p>
@@ -80,19 +88,21 @@ export function CartScreen() {
         </span>
       </div>
 
-      {/* Free shipping */}
       <div className="px-5 mt-3">
-        <FreeShipBar subtotal={subtotal} />
+        <FreeShipBar subtotal={pricing.subtotal} />
       </div>
 
-      {/* Items */}
       <div className="px-5 mt-4 space-y-2.5">
         {cart.map((line) => {
+          const lineId = getLineId(line);
           const lineTotal = line.product.price * line.quantity;
-          const oldLineTotal = line.product.oldPrice ? line.product.oldPrice * line.quantity : null;
+          const oldLineTotal = line.product.oldPrice
+            ? line.product.oldPrice * line.quantity
+            : null;
+
           return (
             <div
-              key={`${line.product.id}-${line.weightOption ?? ""}`}
+              key={lineId}
               className="bg-surface rounded-2xl p-3 shadow-card flex gap-3"
             >
               <button
@@ -118,7 +128,7 @@ export function CartScreen() {
                   </div>
                   <button
                     onClick={() => {
-                      removeFromCart(line.product.id);
+                      removeFromCart(lineId);
                       toast(`${line.product.name} removed`, { duration: 1500 });
                     }}
                     className="tap shrink-0 w-7 h-7 grid place-items-center rounded-full text-muted-foreground hover:text-sale active:scale-90 transition-all"
@@ -140,7 +150,7 @@ export function CartScreen() {
                   </div>
                   <QtyStepper
                     value={line.quantity}
-                    onChange={(v) => updateQty(line.product.id, v)}
+                    onChange={(value) => updateQty(lineId, value)}
                     min={0}
                     max={20}
                     size="sm"
@@ -152,64 +162,95 @@ export function CartScreen() {
         })}
       </div>
 
-      {/* Upsells */}
       {upsells.length > 0 && (
         <div className="mt-6">
           <SectionHeader
-            eyebrow={freeShip ? "More to love" : "Add to unlock free delivery"}
+            eyebrow={pricing.freeDeliveryUnlocked ? "More to love" : "Add to unlock free delivery"}
             title="Frequently added"
           />
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-2.5 px-5 pb-1">
-              {upsells.map((p) => (
-                <ProductCard key={p.id} product={p} variant="compact" />
+              {upsells.map((product) => (
+                <ProductCard key={product.id} product={product} variant="compact" />
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Promo input */}
-      <div className="mx-5 mt-5 flex items-center gap-2 bg-surface rounded-2xl p-3 shadow-xs border border-dashed border-border">
-        <TagIcon className="w-4 h-4 text-primary shrink-0" strokeWidth={2.5} />
-        <input
-          placeholder="Promo code"
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-        />
-        <button className="tap text-xs font-bold text-primary px-2 active:scale-95 transition-transform">
-          APPLY
-        </button>
-      </div>
-
-      {/* Summary */}
-      <div className="mx-5 mt-3 bg-surface rounded-2xl p-4 shadow-card space-y-2.5">
-        <Row label="Subtotal" value={`$${subtotal.toFixed(2)}`} />
-        {savings > 0 && (
-          <Row label="You save" value={`−$${savings.toFixed(2)}`} accent="sale" />
-        )}
-        <Row
-          label="Delivery"
-          value={delivery === 0 ? "FREE" : `$${delivery.toFixed(2)}`}
-          accent={delivery === 0 ? "primary" : undefined}
-        />
-        <div className="border-t border-dashed border-border my-1" />
-        <Row label="Total" value={`$${total.toFixed(2)}`} bold />
-
-        {/* Trust line */}
-        <div className="flex items-center gap-1.5 pt-2 text-[11px] text-muted-foreground">
-          <ShieldCheck className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-          Secure checkout · 100% halal guarantee
+      <div className="mx-5 mt-5 bg-surface rounded-2xl p-3 shadow-xs border border-dashed border-border">
+        <div className="flex items-center gap-2">
+          <TagIcon className="w-4 h-4 text-primary shrink-0" strokeWidth={2.5} />
+          <input
+            value={promoInput}
+            onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
+            placeholder="Promo code"
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+          <button
+            onClick={() => handlePromoApply()}
+            className="tap text-xs font-bold text-primary px-2 active:scale-95 transition-transform"
+          >
+            APPLY
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-3">
+          {PROMO_OFFERS.map((offer) => (
+            <button
+              key={offer.code}
+              onClick={() => handlePromoApply(offer.code)}
+              className="tap h-8 px-3 rounded-full bg-paper text-[11px] font-semibold border border-border active:scale-95 transition-transform"
+            >
+              {offer.code}
+            </button>
+          ))}
+          {promoCode && (
+            <button
+              onClick={() => {
+                clearPromoCode();
+                setPromoInput("");
+              }}
+              className="tap h-8 px-3 rounded-full bg-primary-soft text-[11px] font-semibold text-primary active:scale-95 transition-transform"
+            >
+              Clear promo
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Place order CTA */}
+      <div className="mx-5 mt-3 bg-surface rounded-2xl p-4 shadow-card space-y-2.5">
+        <Row label="Subtotal" value={`$${pricing.subtotal.toFixed(2)}`} />
+        {pricing.savings > 0 && (
+          <Row label="You save" value={`-$${pricing.savings.toFixed(2)}`} accent="sale" />
+        )}
+        {pricing.promoDiscount > 0 && (
+          <Row
+            label={`Promo ${pricing.activePromoCode}`}
+            value={`-$${pricing.promoDiscount.toFixed(2)}`}
+            accent="primary"
+          />
+        )}
+        <Row
+          label="Delivery"
+          value={pricing.delivery === 0 ? "FREE" : `$${pricing.delivery.toFixed(2)}`}
+          accent={pricing.delivery === 0 ? "primary" : undefined}
+        />
+        <div className="border-t border-dashed border-border my-1" />
+        <Row label="Total" value={`$${pricing.total.toFixed(2)}`} bold />
+
+        <div className="flex items-center gap-1.5 pt-2 text-[11px] text-muted-foreground">
+          <ShieldCheck className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
+          Secure checkout - halal guarantee - same-day support
+        </div>
+      </div>
+
       <div className="absolute left-0 right-0 bottom-[68px] px-4 pb-3 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
         <button
-          onClick={() => toast.success("Order placed 🎉", { description: `Total $${total.toFixed(2)}` })}
+          onClick={() => navigate({ name: "checkout" })}
           className="tap w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5"
         >
-          <span>Checkout</span>
-          <span className="tabular-nums">${total.toFixed(2)}</span>
+          <span>Continue to checkout</span>
+          <span className="tabular-nums">${pricing.total.toFixed(2)}</span>
         </button>
       </div>
     </div>
@@ -234,7 +275,11 @@ function Row({
       </span>
       <span
         className={`tabular-nums ${bold ? "text-lg font-bold" : "text-sm font-semibold"} ${
-          accent === "primary" ? "text-primary" : accent === "sale" ? "text-sale" : "text-foreground"
+          accent === "primary"
+            ? "text-primary"
+            : accent === "sale"
+              ? "text-sale"
+              : "text-foreground"
         }`}
       >
         {value}
