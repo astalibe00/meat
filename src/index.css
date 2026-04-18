@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* QORIEV'S MEAT — Editorial Butcher Design System
+   Warm cream surfaces, deep green, refined serif accents.
+   All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Brand */
+    --brand-green: 140 65% 24%;        /* deep butcher green */
+    --brand-green-light: 138 38% 92%;  /* soft eucalyptus */
+    --brand-green-dark: 140 65% 18%;
+    --sale-red: 358 70% 48%;           /* refined red */
+    --gold: 36 55% 52%;                /* subtle gold accent */
+
+    /* Surfaces — editorial cream + paper */
+    --background: 36 30% 96%;          /* #f5f0e8 warm cream */
+    --foreground: 0 0% 10%;            /* near-black ink */
+    --surface: 40 30% 99%;             /* paper white */
+    --surface-foreground: 0 0% 10%;
+    --paper: 36 22% 93%;               /* card alt */
+
+    /* shadcn semantic mappings */
+    --card: 40 30% 99%;
+    --card-foreground: 0 0% 10%;
+    --popover: 40 30% 99%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 140 65% 24%;
+    --primary-foreground: 40 30% 99%;
+    --primary-soft: 138 38% 92%;
+    --primary-soft-foreground: 140 65% 18%;
+
+    --secondary: 36 22% 93%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 36 18% 90%;
+    --muted-foreground: 0 0% 42%;      /* #6b6b6b */
+
+    --accent: 138 38% 92%;
+    --accent-foreground: 140 65% 18%;
+
+    --destructive: 358 70% 48%;
+    --destructive-foreground: 40 30% 99%;
+
+    --border: 36 15% 86%;
+    --input: 36 15% 86%;
+    --ring: 140 65% 24%;
+
+    --radius: 1.25rem;
+
+    /* Refined shadow system */
+    --shadow-xs: 0 1px 2px hsl(28 25% 12% / 0.04);
+    --shadow-soft: 0 1px 3px hsl(28 25% 12% / 0.04), 0 4px 14px -4px hsl(28 25% 12% / 0.05);
+    --shadow-card: 0 1px 2px hsl(28 25% 12% / 0.03), 0 2px 8px -2px hsl(28 25% 12% / 0.04);
+    --shadow-elevated: 0 2px 4px hsl(28 25% 12% / 0.04), 0 12px 32px -8px hsl(28 25% 12% / 0.10);
+    --shadow-nav: 0 -1px 24px -4px hsl(28 25% 12% / 0.08);
+    --shadow-fab: 0 6px 20px -6px hsl(var(--brand-green) / 0.40), 0 2px 6px -2px hsl(var(--brand-green) / 0.25);
+
+    /* Gradients */
+    --gradient-brand: linear-gradient(140deg, hsl(140 65% 24%), hsl(146 55% 32%));
+    --gradient-paper: linear-gradient(180deg, hsl(40 30% 99%), hsl(36 25% 95%));
+    --gradient-cream: linear-gradient(180deg, hsl(36 30% 96%), hsl(36 22% 93%));
+
+    /* Transitions */
+    --ease-out-app: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 30 10% 8%;
+    --foreground: 36 25% 95%;
+    --card: 30 10% 11%;
+    --card-foreground: 36 25% 95%;
+    --popover: 30 10% 11%;
+    --popover-foreground: 36 25% 95%;
+    --primary: 140 50% 42%;
+    --primary-foreground: 30 10% 8%;
+    --secondary: 30 8% 16%;
+    --secondary-foreground: 36 25% 95%;
+    --muted: 30 8% 16%;
+    --muted-foreground: 36 10% 65%;
+    --accent: 30 8% 16%;
+    --accent-foreground: 36 25% 95%;
+    --destructive: 358 60% 50%;
+    --destructive-foreground: 36 25% 95%;
+    --border: 30 8% 18%;
+    --input: 30 8% 18%;
+    --ring: 140 50% 42%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+
+  html, body, #root { @apply h-full; }
+
+  body {
+    @apply bg-white text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .font-serif {
+    font-family: 'Fraunces', 'Times New Roman', serif;
+    font-feature-settings: 'ss01', 'ss02';
+  }
+}
+
+@layer components {
+  /* Hide scrollbar but keep scroll */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Tap polish */
+  .tap {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  /* Editorial chip */
+  .chip {
+    @apply inline-flex items-center gap-1 px-2.5 h-6 rounded-full text-[10px] font-bold uppercase tracking-[0.06em];
+  }
+
+  /* Subtle paper grain (optional) */
+  .grain {
+    background-image:
+      radial-gradient(hsl(28 25% 12% / 0.025) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+}
+
+@layer utilities {
+  .animate-screen-in { animation: screen-in 0.32s var(--ease-out-app); }
+  .animate-pop { animation: pop 0.35s var(--ease-spring); }
+  .animate-bump { animation: bump 0.3s var(--ease-spring); }
+  .animate-slide-up { animation: slide-up 0.35s var(--ease-out-app); }
+  .animate-fade-in { animation: fade-in 0.25s var(--ease-out-app); }
+  .text-balance { text-wrap: balance; }
+}
+
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+@keyframes bump {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
