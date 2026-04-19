@@ -9,7 +9,7 @@ import {
 describe("telegram bot copy", () => {
   it("builds category messages with catalogue items", () => {
     const message = buildCategoryMessage("beef");
-    expect(message).toContain("Beef");
+    expect(message).toContain("Mol go'shti");
     expect(message).toContain("Ground Beef");
   });
 
@@ -20,7 +20,7 @@ describe("telegram bot copy", () => {
   });
 
   it("keeps the welcome message actionable", () => {
-    expect(buildWelcomeMessage(true)).toContain("Open Web App");
+    expect(buildWelcomeMessage(true)).toContain("Mini App");
     expect(buildSupportMessage()).toContain("order ID");
   });
 });

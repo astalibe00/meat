@@ -17,7 +17,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   if (!getTelegramToken()) {
-    res.status(500).json({ ok: false, error: "TELEGRAM_BOT_TOKEN is missing" });
+    res.status(500).json({ ok: false, error: "TELEGRAM_BOT_TOKEN/BOT_TOKEN is missing" });
     return;
   }
 
@@ -39,11 +39,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     await telegramApi("setMyCommands", {
       commands: [
-        { command: "start", description: "Open the main menu" },
-        { command: "shop", description: "Browse quick categories" },
-        { command: "deals", description: "Show current deals" },
-        { command: "delivery", description: "Delivery info" },
-        { command: "support", description: "Help and support" },
+        { command: "start", description: "Asosiy menyu" },
+        { command: "shop", description: "Kategoriyalar" },
+        { command: "deals", description: "Joriy aksiyalar" },
+        { command: "delivery", description: "Yetkazib berish" },
+        { command: "support", description: "Yordam va support" },
       ],
     });
 
@@ -51,7 +51,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       await telegramApi("setChatMenuButton", {
         menu_button: {
           type: "web_app",
-          text: "Open shop",
+          text: "Mini App",
           web_app: {
             url: webAppUrl,
           },

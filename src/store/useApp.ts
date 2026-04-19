@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { CategoryId, Product } from "@/data/products";
 import {
   getCartLineId,
@@ -31,9 +31,16 @@ export interface CartLine {
   weightOption?: string;
 }
 
+export interface SavedAddress {
+  id: string;
+  label: string;
+  address: string;
+}
+
 export interface CheckoutForm {
   name: string;
   phone: string;
+  addressId: string;
   address: string;
   notes: string;
   deliveryWindow: string;
@@ -53,12 +60,19 @@ export interface Order {
   status: "confirmed" | "preparing" | "on-the-way";
 }
 
+interface EditableAddress {
+  id?: string;
+  label: string;
+  address: string;
+}
+
 interface AppState {
   screen: Screen;
   history: Screen[];
   cart: CartLine[];
   favorites: string[];
   recentSearches: string[];
+  savedAddresses: SavedAddress[];
   checkout: CheckoutForm;
   promoCode: string;
   orders: Order[];
@@ -72,6 +86,8 @@ interface AppState {
   pushRecentSearch: (query: string) => void;
   clearRecentSearches: () => void;
   updateCheckout: (patch: Partial<CheckoutForm>) => void;
+  selectAddress: (addressId: string) => void;
+  saveAddress: (address: EditableAddress) => string | null;
   applyPromoCode: (code: string) => PromoResult;
   clearPromoCode: () => void;
   placeOrder: () => Order | null;
@@ -82,16 +98,93 @@ interface AppState {
   cartPricing: () => CartPricing;
 }
 
+export const DEFAULT_PROFILE_NAME = "Fresh Halal customer";
+export const DEFAULT_DELIVERY_WINDOW = "Today, 18:00 - 20:00";
+
+export const DEFAULT_ADDRESSES: SavedAddress[] = [
+  {
+    id: "home",
+    label: "Home",
+    address: "Yunusobod tumani, 14-kvartal, 23-uy, Tashkent",
+  },
+  {
+    id: "office",
+    label: "Office",
+    address: "Oybek ko'chasi, 18A, 6-qavat, Tashkent",
+  },
+];
+
 const DEFAULT_CHECKOUT: CheckoutForm = {
-  name: "Guest Shopper",
-  phone: "+1 555 010 200",
-  address: "23 Market Street, Tashkent",
+  name: DEFAULT_PROFILE_NAME,
+  phone: "+998 90 123 45 67",
+  addressId: DEFAULT_ADDRESSES[0].id,
+  address: DEFAULT_ADDRESSES[0].address,
   notes: "",
-  deliveryWindow: "Today, 6pm - 8pm",
+  deliveryWindow: DEFAULT_DELIVERY_WINDOW,
 };
 
 function isSameScreen(a: Screen, b: Screen) {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function createAddressId() {
+  return `addr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function getSelectedAddress(addresses: SavedAddress[], addressId?: string, fallbackAddress?: string) {
+  return (
+    addresses.find((address) => address.id === addressId) ??
+    addresses.find((address) => address.address === fallbackAddress) ??
+    addresses[0]
+  );
+}
+
+function normalizeSavedAddresses(
+  savedAddresses?: SavedAddress[],
+  fallbackAddress?: string,
+): SavedAddress[] {
+  const source = savedAddresses?.length ? savedAddresses : DEFAULT_ADDRESSES;
+  const seen = new Set<string>();
+  const normalized = source
+    .map((address, index) => ({
+      id: address.id?.trim() || `saved-${index + 1}`,
+      label: address.label?.trim() || `Address ${index + 1}`,
+      address: address.address?.trim() || "",
+    }))
+    .filter((address) => {
+      if (!address.address || seen.has(address.address)) {
+        return false;
+      }
+
+      seen.add(address.address);
+      return true;
+    });
+
+  if (fallbackAddress?.trim() && !seen.has(fallbackAddress.trim())) {
+    normalized.unshift({
+      id: "saved-current",
+      label: "Selected address",
+      address: fallbackAddress.trim(),
+    });
+  }
+
+  return normalized.length > 0 ? normalized : DEFAULT_ADDRESSES;
+}
+
+function normalizeCheckout(
+  checkout?: Partial<CheckoutForm>,
+  savedAddresses?: SavedAddress[],
+): CheckoutForm {
+  const addresses = normalizeSavedAddresses(savedAddresses, checkout?.address);
+  const selectedAddress = getSelectedAddress(addresses, checkout?.addressId, checkout?.address);
+
+  return {
+    ...DEFAULT_CHECKOUT,
+    ...checkout,
+    addressId: selectedAddress.id,
+    address: checkout?.address?.trim() || selectedAddress.address,
+    deliveryWindow: checkout?.deliveryWindow?.trim() || DEFAULT_DELIVERY_WINDOW,
+  };
 }
 
 export const useApp = create<AppState>()(
@@ -102,6 +195,7 @@ export const useApp = create<AppState>()(
       cart: [],
       favorites: [],
       recentSearches: ["Ribeye", "Lamb chops", "Chicken wings"],
+      savedAddresses: DEFAULT_ADDRESSES,
       checkout: DEFAULT_CHECKOUT,
       promoCode: "",
       orders: [],
@@ -194,6 +288,63 @@ export const useApp = create<AppState>()(
             ...patch,
           },
         })),
+      selectAddress: (addressId) =>
+        set((state) => {
+          const selectedAddress = state.savedAddresses.find((address) => address.id === addressId);
+          if (!selectedAddress) {
+            return state;
+          }
+
+          return {
+            checkout: {
+              ...state.checkout,
+              addressId: selectedAddress.id,
+              address: selectedAddress.address,
+            },
+          };
+        }),
+      saveAddress: (address) => {
+        const label = address.label.trim();
+        const fullAddress = address.address.trim();
+
+        if (!label || !fullAddress) {
+          return null;
+        }
+
+        let savedId = address.id;
+
+        set((state) => {
+          const existingIndex = savedId
+            ? state.savedAddresses.findIndex((item) => item.id === savedId)
+            : -1;
+
+          let nextAddresses = [...state.savedAddresses];
+          if (existingIndex >= 0) {
+            nextAddresses[existingIndex] = {
+              id: savedId!,
+              label,
+              address: fullAddress,
+            };
+          } else {
+            savedId = createAddressId();
+            nextAddresses = [
+              { id: savedId, label, address: fullAddress },
+              ...state.savedAddresses.filter((item) => item.address !== fullAddress),
+            ];
+          }
+
+          return {
+            savedAddresses: nextAddresses,
+            checkout: {
+              ...state.checkout,
+              addressId: savedId!,
+              address: fullAddress,
+            },
+          };
+        });
+
+        return savedId ?? null;
+      },
       applyPromoCode: (code) => {
         const subtotal = get().cartSubtotal();
         const result = validatePromoCode(code, subtotal);
@@ -228,7 +379,7 @@ export const useApp = create<AppState>()(
           delivery: pricing.delivery,
           total: pricing.total,
           promoCode: pricing.activePromoCode,
-          customer,
+          customer: { ...customer },
           status: "confirmed",
         };
 
@@ -247,6 +398,7 @@ export const useApp = create<AppState>()(
           cart: [],
           favorites: [],
           recentSearches: [],
+          savedAddresses: DEFAULT_ADDRESSES,
           promoCode: "",
           orders: [],
           checkout: DEFAULT_CHECKOUT,
@@ -260,15 +412,33 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "fresh-halal-direct-state",
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         cart: state.cart,
         favorites: state.favorites,
         recentSearches: state.recentSearches,
+        savedAddresses: state.savedAddresses,
         checkout: state.checkout,
         promoCode: state.promoCode,
         orders: state.orders,
       }),
+      migrate: (persistedState) => {
+        const state = (persistedState ?? {}) as Partial<AppState> & {
+          checkout?: Partial<CheckoutForm>;
+          savedAddresses?: SavedAddress[];
+        };
+        const savedAddresses = normalizeSavedAddresses(
+          state.savedAddresses,
+          state.checkout?.address,
+        );
+
+        return {
+          ...state,
+          savedAddresses,
+          checkout: normalizeCheckout(state.checkout, savedAddresses),
+        };
+      },
     },
   ),
 );

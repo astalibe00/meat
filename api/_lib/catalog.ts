@@ -8,41 +8,41 @@ export interface BotCategory {
 export const BOT_CATEGORIES: BotCategory[] = [
   {
     id: "beef",
-    title: "Beef",
-    lead: "Popular steaks, mince, and slow-cook cuts.",
+    title: "Mol go'shti",
+    lead: "Steyk, qiyma va sekin pishadigan bo'laklar.",
     items: [
-      "Ground Beef - from $8.99",
-      "Beef Chuck Roast - from $15.99",
-      "Beef Ribeye Steak - from $18.99",
+      "Ground Beef - 110 000 UZS / 0.5 kg",
+      "Beef Chuck Roast - 195 000 UZS / 0.9-1.4 kg",
+      "Beef Ribeye Steak - 232 000 UZS / 0.3 kg",
     ],
   },
   {
     id: "lamb",
-    title: "Lamb",
-    lead: "Tender lamb cuts for grills and family feasts.",
+    title: "Qo'y go'shti",
+    lead: "Grill va oilaviy dasturxon uchun yumshoq bo'laklar.",
     items: [
-      "Whole Leg of Lamb - from $34.99",
-      "Lamb Chops - from $24.99",
-      "Ground Lamb - from $12.99",
+      "Whole Leg of Lamb - 427 000 UZS / 1.8-2.3 kg",
+      "Lamb Chops - 305 000 UZS / 0.6 kg",
+      "Ground Lamb - 158 000 UZS / 0.5 kg",
     ],
   },
   {
     id: "chicken",
-    title: "Chicken",
-    lead: "Daily fresh chicken essentials and family packs.",
+    title: "Tovuq",
+    lead: "Har kuni yangi tovuq mahsulotlari va oilaviy hajm.",
     items: [
-      "Whole Chicken - from $12.99",
-      "Chicken Thighs - from $10.49",
-      "Chicken Wings - from $9.99",
+      "Whole Chicken - 158 000 UZS / 1.8-2.3 kg",
+      "Chicken Thighs - 128 000 UZS / 1.8 kg",
+      "Chicken Wings - 122 000 UZS / 1.4 kg",
     ],
   },
   {
     id: "goat",
-    title: "Goat",
-    lead: "Traditional curry cuts and slow-cook favourites.",
+    title: "Echki go'shti",
+    lead: "An'anaviy curry va dimlama uchun tanlovlar.",
     items: [
-      "Goat Shoulder - from $22.99",
-      "Goat Curry Cut - from $17.99",
+      "Goat Shoulder - 280 000 UZS / 1.4-1.8 kg",
+      "Goat Curry Cut - 220 000 UZS / 0.9 kg",
     ],
   },
 ];
@@ -54,7 +54,7 @@ export function getCategoryById(id: string) {
 export function buildCategoryMessage(id: string) {
   const category = getCategoryById(id);
   if (!category) {
-    return "Category not found. Use the menu to browse available cuts.";
+    return "Kategoriya topilmadi. Menyudan qayta tanlang.";
   }
 
   return [
@@ -63,43 +63,43 @@ export function buildCategoryMessage(id: string) {
     "",
     ...category.items.map((item, index) => `${index + 1}. ${item}`),
     "",
-    "Tap Open Web App to see the full catalogue and place an order.",
+    "To'liq katalog va checkout uchun Mini App tugmasini bosing.",
   ].join("\n");
 }
 
 export function buildDealsMessage() {
   return [
-    "Current deals",
+    "Joriy aksiyalar",
     "",
-    "1. SAVE10 - 10% off orders above $60",
-    "2. FREESHIP - free delivery on any basket",
-    "3. Family Halal Box - save over $20 on the weekly bundle",
+    "1. SAVE10 - 700 000 UZS dan yuqori savatga 10% chegirma",
+    "2. FREESHIP - istalgan savatga bepul yetkazib berish",
+    "3. Family Halal Box - haftalik to'plam uchun foydali narx",
     "",
-    "Use the promo code in the cart before checkout.",
+    "Promo kodni checkoutdan oldin savatchada kiriting.",
   ].join("\n");
 }
 
 export function buildDeliveryMessage() {
   return [
-    "Delivery details",
+    "Yetkazib berish",
     "",
-    "- Same-day dispatch on orders placed before 2pm",
-    "- Evening delivery slots are available during checkout",
-    "- Order updates appear in the website and Telegram bot",
+    "- 14:00 gacha berilgan buyurtmalar shu kuni jo'natiladi",
+    "- Kechki slotlar checkout ichida tanlanadi",
+    "- Status yangilanishlari sayt va botda ko'rinadi",
     "",
-    "Need to edit an address? Open Support from the main menu.",
+    "Manzilni o'zgartirish kerak bo'lsa, Support bo'limidan yozing.",
   ].join("\n");
 }
 
 export function buildSupportMessage() {
   return [
-    "Support options",
+    "Support",
     "",
-    "- Use Shop to browse categories",
-    "- Use Delivery for dispatch questions",
-    "- Keep your order ID ready when asking for help",
+    "- Katalog orqali mahsulotlarni ko'ring",
+    "- Yetkazib berish bo'limidan dispatch ma'lumotini oling",
+    "- Yordam so'rovida order ID ni yozib yuboring",
     "",
-    "If the website is already deployed, use Open Web App for the fastest checkout flow.",
+    "Eng tez checkout uchun Mini App tugmasidan foydalaning.",
   ].join("\n");
 }
 
@@ -107,10 +107,10 @@ export function buildWelcomeMessage(webAppAvailable: boolean) {
   return [
     "Fresh Halal Direct",
     "",
-    "Minimal, fast, and practical ordering from Telegram.",
-    "Use the menu below for shopping, deals, delivery help, or support.",
+    "Telegram ichida tez, minimal va qulay buyurtma oqimi.",
+    "Quyidagi menyudan katalog, aksiyalar, yetkazib berish yoki supportni tanlang.",
     webAppAvailable
-      ? "Open Web App gives the quickest path to checkout."
-      : "Set TELEGRAM_WEBAPP_URL after deploy to enable the Open Web App button.",
+      ? "Mini App eng tez checkout yo'lini ochadi."
+      : "Mini App tugmasi deploy URL sozlangach ishlaydi.",
   ].join("\n");
 }

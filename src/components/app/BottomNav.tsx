@@ -15,7 +15,6 @@ export function BottomNav() {
   const screen = useApp((state) => state.screen);
   const navigate = useApp((state) => state.navigate);
   const cartCount = useApp((state) => state.cartCount());
-  const subtotal = useApp((state) => state.cartSubtotal());
   const [bump] = useBumpOnChange(cartCount);
 
   const isTabActive = (name: Screen["name"]) => {
@@ -41,11 +40,10 @@ export function BottomNav() {
 
   return (
     <nav className="absolute bottom-0 inset-x-0 bg-surface/95 backdrop-blur-xl border-t border-border/60 shadow-nav">
-      <div className="grid grid-cols-5 px-2 pt-2 pb-3">
+      <div className="grid grid-cols-5 px-2 pt-2 pb-[calc(12px+env(safe-area-inset-bottom))]">
         {tabs.map(({ name, label, Icon }) => {
           const active = isTabActive(name);
           const isCart = name === "cart";
-          const cartLabel = isCart && subtotal > 0 ? `$${subtotal.toFixed(0)}` : label;
           const target = { name } as Screen;
 
           return (
@@ -87,7 +85,7 @@ export function BottomNav() {
                   active ? "text-primary" : "text-foreground/55",
                 )}
               >
-                {cartLabel}
+                {label}
               </span>
             </button>
           );

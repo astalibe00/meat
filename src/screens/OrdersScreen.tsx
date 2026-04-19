@@ -1,5 +1,6 @@
 import { Clock3, PackageCheck, Truck } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
+import { formatCurrency, formatDate, formatTime } from "@/lib/format";
 import { useApp } from "@/store/useApp";
 
 export function OrdersScreen() {
@@ -47,7 +48,7 @@ export function OrdersScreen() {
                 <div>
                   <p className="text-sm font-semibold">{order.id}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {createdAt.toLocaleDateString()} at {createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {formatDate(createdAt)} at {formatTime(createdAt)}
                   </p>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-primary-soft text-primary text-[11px] font-semibold">
@@ -58,7 +59,7 @@ export function OrdersScreen() {
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 <OrderStat icon={<PackageCheck className="w-4 h-4" strokeWidth={2.25} />} label="Items" value={String(order.items.length)} />
                 <OrderStat icon={<Clock3 className="w-4 h-4" strokeWidth={2.25} />} label="Slot" value={order.customer.deliveryWindow.split(",")[0]} />
-                <OrderStat icon={<Truck className="w-4 h-4" strokeWidth={2.25} />} label="Total" value={`$${order.total.toFixed(0)}`} />
+                <OrderStat icon={<Truck className="w-4 h-4" strokeWidth={2.25} />} label="Total" value={formatCurrency(order.total)} />
               </div>
 
               <div className="mt-4 space-y-2">
@@ -68,7 +69,7 @@ export function OrdersScreen() {
                       {line.quantity} x {line.product.name}
                     </span>
                     <span className="font-semibold tabular-nums">
-                      ${(line.product.price * line.quantity).toFixed(2)}
+                      {formatCurrency(line.product.price * line.quantity)}
                     </span>
                   </div>
                 ))}

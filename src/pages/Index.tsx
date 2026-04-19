@@ -1,5 +1,6 @@
+import React from "react";
 import { BottomNav } from "@/components/app/BottomNav";
-import { StatusBar, TopHeader } from "@/components/app/Chrome";
+import { TopHeader } from "@/components/app/Chrome";
 import { CartScreen } from "@/screens/CartScreen";
 import { CategoriesScreen } from "@/screens/CategoriesScreen";
 import { CheckoutScreen } from "@/screens/CheckoutScreen";
@@ -10,11 +11,11 @@ import { ProductDetailScreen } from "@/screens/ProductDetailScreen";
 import { ProfileScreen } from "@/screens/ProfileScreen";
 import { SearchScreen } from "@/screens/SearchScreen";
 import { SupportScreen } from "@/screens/SupportScreen";
+import { getTelegramWebApp } from "@/lib/telegram-webapp";
 import { useApp, type Screen } from "@/store/useApp";
 
 const HEADER_HIDDEN_SCREENS = new Set(["product"] as const);
 
-const HEADER_OFFSET = 20;
 const HEADER_HEIGHT = 56;
 const NAV_HEIGHT = 68;
 
@@ -31,6 +32,25 @@ const screenKey = (screen: Screen) => {
 
 export default function Index() {
   const screen = useApp((state) => state.screen);
+  const historyLength = useApp((state) => state.history.length);
+  const back = useApp((state) => state.back);
+
+  React.useEffect(() => {
+    const backButton = getTelegramWebApp()?.BackButton;
+    if (!backButton) {
+      return;
+    }
+
+    const handleBack = () => back();
+    if (historyLength > 0) {
+      backButton.show();
+      backButton.onClick(handleBack);
+      return () => backButton.offClick?.(handleBack);
+    }
+
+    backButton.hide();
+    return undefined;
+  }, [back, historyLength]);
 
   const renderScreen = () => {
     switch (screen.name) {
@@ -64,15 +84,16 @@ export default function Index() {
   return (
     <div className="min-h-screen w-full bg-white flex items-center justify-center sm:p-4">
       <div className="relative w-full max-w-[430px] h-screen sm:h-[920px] sm:max-h-[920px] sm:rounded-[44px] overflow-hidden bg-background shadow-elevated sm:border sm:border-border">
-        <StatusBar />
         {!hideHeader && <TopHeader />}
 
         <main
           key={screenKey(screen)}
           className="absolute inset-0 overflow-y-auto no-scrollbar"
           style={{
-            top: hideHeader ? `${HEADER_OFFSET}px` : `${HEADER_OFFSET + HEADER_HEIGHT}px`,
-            bottom: `${NAV_HEIGHT}px`,
+            top: hideHeader
+              ? "env(safe-area-inset-top)"
+              : `calc(${HEADER_HEIGHT}px + env(safe-area-inset-top))`,
+            bottom: `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))`,
           }}
         >
           {renderScreen()}

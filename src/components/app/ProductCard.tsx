@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Heart, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { type Product } from "@/data/products";
+import { formatCurrency } from "@/lib/format";
 import { useApp } from "@/store/useApp";
 import { cn } from "@/lib/utils";
 import { ProductBadge } from "./ProductBadge";
@@ -32,7 +33,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
     setBump(true);
     window.setTimeout(() => setBump(false), 350);
     toast.success(`Added ${product.name}`, {
-      description: `$${product.price.toFixed(2)} - ${product.weight}`,
+      description: `${formatCurrency(product.price)} - ${product.weight}`,
       duration: 1500,
     });
   };
@@ -66,7 +67,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
           <h3 className="text-[13px] font-semibold leading-tight line-clamp-1">{product.name}</h3>
         </button>
         <div className="flex items-center justify-between mt-1.5">
-          <span className="text-sm font-bold tabular-nums">${product.price.toFixed(2)}</span>
+          <span className="text-sm font-bold tabular-nums">{formatCurrency(product.price)}</span>
           <button
             onClick={handleAdd}
             className={cn(
@@ -126,11 +127,11 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
         <div className="flex items-end justify-between mt-2.5">
           <div className="flex flex-col">
             <span className="text-base font-bold leading-none tabular-nums">
-              ${product.price.toFixed(2)}
+              {formatCurrency(product.price)}
             </span>
             {onSale && (
               <span className="text-[11px] text-muted-foreground line-through mt-1 tabular-nums">
-                ${product.oldPrice!.toFixed(2)}
+                {formatCurrency(product.oldPrice!)}
               </span>
             )}
           </div>
@@ -192,11 +193,11 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
       <div className="flex items-end justify-between mt-2.5">
         <div className="flex flex-col">
           <span className="text-base font-bold leading-none tabular-nums">
-            ${product.price.toFixed(2)}
+            {formatCurrency(product.price)}
           </span>
           {onSale && (
             <span className="text-[11px] text-muted-foreground line-through mt-1 tabular-nums">
-              ${product.oldPrice!.toFixed(2)}
+              {formatCurrency(product.oldPrice!)}
             </span>
           )}
         </div>

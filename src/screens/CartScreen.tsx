@@ -7,6 +7,7 @@ import { ProductCard } from "@/components/app/ProductCard";
 import { QtyStepper } from "@/components/app/QtyStepper";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { getCartUpsells } from "@/data/products";
+import { formatCurrency } from "@/lib/format";
 import { PROMO_OFFERS, getLineId } from "@/lib/commerce";
 import { useApp } from "@/store/useApp";
 
@@ -75,7 +76,7 @@ export function CartScreen() {
   };
 
   return (
-    <div className="animate-screen-in pb-36">
+    <div className="animate-screen-in pb-6">
       <div className="px-5 pt-3 pb-2 flex items-end justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Review</p>
@@ -101,10 +102,7 @@ export function CartScreen() {
             : null;
 
           return (
-            <div
-              key={lineId}
-              className="bg-surface rounded-2xl p-3 shadow-card flex gap-3"
-            >
+            <div key={lineId} className="bg-surface rounded-2xl p-3 shadow-card flex gap-3">
               <button
                 onClick={() => navigate({ name: "product", id: line.product.id })}
                 className="tap w-20 h-20 rounded-xl overflow-hidden bg-paper shrink-0 active:scale-95 transition-transform"
@@ -137,14 +135,14 @@ export function CartScreen() {
                     <Trash2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                   </button>
                 </div>
-                <div className="mt-auto flex items-end justify-between">
-                  <div className="flex flex-col">
+                <div className="mt-auto flex items-end justify-between gap-3">
+                  <div className="flex flex-col min-w-0">
                     <span className="text-base font-bold tabular-nums leading-none">
-                      ${lineTotal.toFixed(2)}
+                      {formatCurrency(lineTotal)}
                     </span>
                     {oldLineTotal && (
                       <span className="text-[11px] text-muted-foreground line-through tabular-nums mt-1">
-                        ${oldLineTotal.toFixed(2)}
+                        {formatCurrency(oldLineTotal)}
                       </span>
                     )}
                   </div>
@@ -219,24 +217,24 @@ export function CartScreen() {
       </div>
 
       <div className="mx-5 mt-3 bg-surface rounded-2xl p-4 shadow-card space-y-2.5">
-        <Row label="Subtotal" value={`$${pricing.subtotal.toFixed(2)}`} />
+        <Row label="Subtotal" value={formatCurrency(pricing.subtotal)} />
         {pricing.savings > 0 && (
-          <Row label="You save" value={`-$${pricing.savings.toFixed(2)}`} accent="sale" />
+          <Row label="You save" value={`-${formatCurrency(pricing.savings)}`} accent="sale" />
         )}
         {pricing.promoDiscount > 0 && (
           <Row
             label={`Promo ${pricing.activePromoCode}`}
-            value={`-$${pricing.promoDiscount.toFixed(2)}`}
+            value={`-${formatCurrency(pricing.promoDiscount)}`}
             accent="primary"
           />
         )}
         <Row
           label="Delivery"
-          value={pricing.delivery === 0 ? "FREE" : `$${pricing.delivery.toFixed(2)}`}
+          value={pricing.delivery === 0 ? "FREE" : formatCurrency(pricing.delivery)}
           accent={pricing.delivery === 0 ? "primary" : undefined}
         />
         <div className="border-t border-dashed border-border my-1" />
-        <Row label="Total" value={`$${pricing.total.toFixed(2)}`} bold />
+        <Row label="Total" value={formatCurrency(pricing.total)} bold />
 
         <div className="flex items-center gap-1.5 pt-2 text-[11px] text-muted-foreground">
           <ShieldCheck className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
@@ -244,13 +242,13 @@ export function CartScreen() {
         </div>
       </div>
 
-      <div className="absolute left-0 right-0 bottom-[68px] px-4 pb-3 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
+      <div className="sticky bottom-0 mt-4 px-4 pb-3 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
         <button
           onClick={() => navigate({ name: "checkout" })}
           className="tap w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5"
         >
           <span>Continue to checkout</span>
-          <span className="tabular-nums">${pricing.total.toFixed(2)}</span>
+          <span className="tabular-nums">{formatCurrency(pricing.total)}</span>
         </button>
       </div>
     </div>
@@ -269,12 +267,12 @@ function Row({
   accent?: "primary" | "sale";
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3">
       <span className={bold ? "text-base font-bold" : "text-[13px] text-muted-foreground"}>
         {label}
       </span>
       <span
-        className={`tabular-nums ${bold ? "text-lg font-bold" : "text-sm font-semibold"} ${
+        className={`tabular-nums text-right ${bold ? "text-lg font-bold" : "text-sm font-semibold"} ${
           accent === "primary"
             ? "text-primary"
             : accent === "sale"

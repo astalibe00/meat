@@ -1,4 +1,5 @@
 import { DELIVERY_FEE, FREE_SHIPPING_THRESHOLD, type Product } from "@/data/products";
+import { formatCurrency } from "@/lib/format";
 
 export interface CartLineLike {
   product: Product;
@@ -22,10 +23,12 @@ export interface PromoResult {
   message: string;
 }
 
+export const SAVE10_THRESHOLD = 700000;
+
 export const PROMO_OFFERS = [
   {
     code: "SAVE10",
-    label: "10% off orders over $60",
+    label: `10% off orders over ${formatCurrency(SAVE10_THRESHOLD)}`,
   },
   {
     code: "FREESHIP",
@@ -68,11 +71,11 @@ export function validatePromoCode(code: string, subtotal: number): PromoResult {
   }
 
   if (normalized === "SAVE10") {
-    if (subtotal < 60) {
+    if (subtotal < SAVE10_THRESHOLD) {
       return {
         ok: false,
         code: normalized,
-        message: "SAVE10 works on baskets above $60.",
+        message: `SAVE10 works on baskets above ${formatCurrency(SAVE10_THRESHOLD)}.`,
       };
     }
 
@@ -108,7 +111,7 @@ export function getCartPricing(cart: CartLineLike[], promoCode?: string): CartPr
   let delivery = subtotal === 0 ? 0 : freeDeliveryByThreshold ? 0 : DELIVERY_FEE;
   let activePromoCode = "";
 
-  if (normalized === "SAVE10" && subtotal >= 60) {
+  if (normalized === "SAVE10" && subtotal >= SAVE10_THRESHOLD) {
     promoDiscount = Number((subtotal * 0.1).toFixed(2));
     activePromoCode = normalized;
   }

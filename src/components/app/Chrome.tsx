@@ -1,25 +1,15 @@
 import { Bell, ChevronDown, MapPin } from "lucide-react";
 import { useApp } from "@/store/useApp";
 
-export function StatusBar() {
-  return (
-    <div className="h-5 bg-surface flex items-center justify-between px-5 text-[11px] font-semibold text-foreground select-none">
-      <span className="tabular-nums">9:41</span>
-      <div className="flex items-center gap-1">
-        <span className="inline-block w-3 h-2 rounded-sm bg-foreground/85" />
-        <span className="inline-block w-3 h-2 rounded-sm bg-foreground/85" />
-        <span className="inline-block w-5 h-2 rounded-sm border border-foreground/85" />
-      </div>
-    </div>
-  );
-}
-
 export function TopHeader() {
   const navigate = useApp((state) => state.navigate);
   const checkout = useApp((state) => state.checkout);
+  const savedAddresses = useApp((state) => state.savedAddresses);
+  const selectedAddress =
+    savedAddresses.find((address) => address.id === checkout.addressId) ?? savedAddresses[0];
 
   return (
-    <header className="h-14 bg-surface px-4 flex items-center justify-between border-b border-border/50">
+    <header className="h-[calc(56px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-surface px-4 flex items-center justify-between border-b border-border/50">
       <button
         onClick={() => navigate({ name: "checkout" })}
         className="tap flex items-center gap-2 active:scale-95 transition-transform"
@@ -32,7 +22,7 @@ export function TopHeader() {
             Deliver to
           </span>
           <span className="text-xs font-bold flex items-center gap-1 mt-0.5">
-            {checkout.address.split(",")[0]}
+            {selectedAddress?.label ?? checkout.address.split(",")[0]}
             <ChevronDown className="w-3 h-3" strokeWidth={2.5} />
           </span>
         </div>

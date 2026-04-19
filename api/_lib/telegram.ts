@@ -1,24 +1,48 @@
 type TelegramPayload = Record<string, unknown>;
 
+function getEnvValue(names: string[]) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
 export function getTelegramToken() {
-  return process.env.TELEGRAM_BOT_TOKEN?.trim() ?? "";
+  return getEnvValue(["TELEGRAM_BOT_TOKEN", "BOT_TOKEN"]);
 }
 
 export function getWebhookSecret() {
-  return process.env.TELEGRAM_WEBHOOK_SECRET?.trim() ?? "";
+  return getEnvValue(["TELEGRAM_WEBHOOK_SECRET", "WEBHOOK_SECRET"]);
+}
+
+export function getAdminChatIds() {
+  return getEnvValue(["ADMIN_TELEGRAM_IDS"])
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function getChannelId() {
+  return getEnvValue(["CHANNEL_ID"]);
 }
 
 export function getWebAppUrl(fallbackUrl = "") {
-  if (process.env.TELEGRAM_WEBAPP_URL?.trim()) {
-    return process.env.TELEGRAM_WEBAPP_URL.trim();
+  const explicitUrl = getEnvValue([
+    "TELEGRAM_WEBAPP_URL",
+    "MINI_APP_URL",
+    "NEXT_PUBLIC_SITE_URL",
+  ]);
+
+  if (explicitUrl) {
+    return explicitUrl;
   }
 
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`;
-  }
-
-  if (process.env.NEXT_PUBLIC_SITE_URL?.trim()) {
-    return process.env.NEXT_PUBLIC_SITE_URL.trim();
   }
 
   if (fallbackUrl) {
@@ -35,7 +59,7 @@ export function getWebAppUrl(fallbackUrl = "") {
 export async function telegramApi(method: string, payload: TelegramPayload) {
   const token = getTelegramToken();
   if (!token) {
-    throw new Error("TELEGRAM_BOT_TOKEN is missing.");
+    throw new Error("TELEGRAM_BOT_TOKEN/BOT_TOKEN is missing.");
   }
 
   const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
@@ -55,11 +79,16 @@ export async function telegramApi(method: string, payload: TelegramPayload) {
 }
 
 export function mainReplyKeyboard() {
+  const webAppUrl = getWebAppUrl();
+  const firstRow = webAppUrl
+    ? [{ text: "Mini App", web_app: { url: webAppUrl } }]
+    : [{ text: "Mini App" }];
+
   return {
     keyboard: [
-      [{ text: "Shop" }, { text: "Deals" }],
-      [{ text: "Delivery" }, { text: "Support" }],
-      [{ text: "Open Web App" }],
+      firstRow,
+      [{ text: "Katalog" }, { text: "Aksiyalar" }],
+      [{ text: "Yetkazib berish" }, { text: "Support" }],
     ],
     resize_keyboard: true,
     is_persistent: true,
@@ -69,15 +98,15 @@ export function mainReplyKeyboard() {
 export function mainInlineKeyboard() {
   const webAppUrl = getWebAppUrl();
   const openShopButton = webAppUrl
-    ? [{ text: "Open Web App", web_app: { url: webAppUrl } }]
-    : [{ text: "Browse categories", callback_data: "menu:shop" }];
+    ? [{ text: "Mini Appni ochish", web_app: { url: webAppUrl } }]
+    : [{ text: "Katalog", callback_data: "menu:shop" }];
 
   return {
     inline_keyboard: [
       openShopButton,
       [
-        { text: "Deals", callback_data: "menu:deals" },
-        { text: "Delivery", callback_data: "menu:delivery" },
+        { text: "Aksiyalar", callback_data: "menu:deals" },
+        { text: "Yetkazib berish", callback_data: "menu:delivery" },
       ],
       [{ text: "Support", callback_data: "menu:support" }],
     ],
@@ -88,14 +117,14 @@ export function categoryInlineKeyboard() {
   return {
     inline_keyboard: [
       [
-        { text: "Beef", callback_data: "category:beef" },
-        { text: "Lamb", callback_data: "category:lamb" },
+        { text: "Mol go'shti", callback_data: "category:beef" },
+        { text: "Qo'y go'shti", callback_data: "category:lamb" },
       ],
       [
-        { text: "Chicken", callback_data: "category:chicken" },
-        { text: "Goat", callback_data: "category:goat" },
+        { text: "Tovuq", callback_data: "category:chicken" },
+        { text: "Echki go'shti", callback_data: "category:goat" },
       ],
-      [{ text: "Back to main menu", callback_data: "menu:start" }],
+      [{ text: "Asosiy menyu", callback_data: "menu:start" }],
     ],
   };
 }
@@ -120,6 +149,18 @@ export async function answerCallbackQuery(callbackQueryId: string, text?: string
 }
 
 export function getBaseUrl(req: { headers?: Record<string, string | string[] | undefined> }) {
+  const configuredWebhookUrl = getEnvValue(["WEBHOOK_URL"]);
+  if (configuredWebhookUrl) {
+    try {
+      const parsed = new URL(configuredWebhookUrl);
+      return `${parsed.protocol}//${parsed.host}`;
+    } catch {
+      return configuredWebhookUrl
+        .replace(/\/api\/telegram-webhook(?:\?.*)?$/, "")
+        .replace(/\/$/, "");
+    }
+  }
+
   const headers = req.headers ?? {};
   const protoHeader = headers["x-forwarded-proto"];
   const hostHeader = headers["x-forwarded-host"] ?? headers.host;

@@ -15,6 +15,7 @@ import { ProductCard } from "@/components/app/ProductCard";
 import { QtyStepper } from "@/components/app/QtyStepper";
 import { SectionHeader } from "@/components/app/SectionHeader";
 import { getProductById, getRelatedProducts } from "@/data/products";
+import { formatCurrency } from "@/lib/format";
 import { useApp } from "@/store/useApp";
 
 export function ProductDetailScreen() {
@@ -42,14 +43,14 @@ export function ProductDetailScreen() {
   const handleAdd = () => {
     addToCart(product, quantity, weight);
     toast.success(`Added ${quantity} x ${product.name}`, {
-      description: `${weight ?? product.weight} - $${(product.price * quantity).toFixed(2)}`,
+      description: `${weight ?? product.weight} - ${formatCurrency(product.price * quantity)}`,
       duration: 1700,
     });
     navigate({ name: "cart" });
   };
 
   const handleShare = async () => {
-    const message = `${product.name} - $${product.price.toFixed(2)} at Fresh Halal Direct`;
+    const message = `${product.name} - ${formatCurrency(product.price)} at Fresh Halal Direct`;
     try {
       if (navigator.share) {
         await navigator.share({ title: product.name, text: message });
@@ -63,7 +64,7 @@ export function ProductDetailScreen() {
   };
 
   return (
-    <div className="animate-screen-in pb-32 bg-background min-h-full">
+    <div className="animate-screen-in pb-24 bg-background min-h-full">
       <div className="relative bg-paper aspect-[4/3.6]">
         <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background/30 via-transparent to-transparent" />
@@ -71,11 +72,15 @@ export function ProductDetailScreen() {
         <button
           onClick={back}
           aria-label="Back"
-          className="tap absolute top-3 left-3 w-10 h-10 rounded-full bg-surface/95 backdrop-blur grid place-items-center shadow-card active:scale-90 transition-transform"
+          className="tap absolute left-3 w-10 h-10 rounded-full bg-surface/95 backdrop-blur grid place-items-center shadow-card active:scale-90 transition-transform"
+          style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
         >
           <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
         </button>
-        <div className="absolute top-3 right-3 flex flex-col gap-2">
+        <div
+          className="absolute right-3 flex flex-col gap-2"
+          style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
+        >
           <button
             onClick={() => toggleFavorite(product.id)}
             aria-label="Save"
@@ -97,7 +102,7 @@ export function ProductDetailScreen() {
         {onSale && (
           <div className="absolute bottom-4 left-4">
             <ProductBadge
-              label={`Save $${savings.toFixed(2)}`}
+              label={`Save ${formatCurrency(savings)}`}
               variant="Sale"
               className="!h-7 !px-3 !text-xs"
             />
@@ -126,11 +131,11 @@ export function ProductDetailScreen() {
           </div>
           <div className="text-right shrink-0">
             <p className="font-serif text-[26px] font-semibold leading-none text-primary tabular-nums">
-              ${product.price.toFixed(2)}
+              {formatCurrency(product.price)}
             </p>
             {onSale && (
               <p className="text-xs text-muted-foreground line-through mt-1.5 tabular-nums">
-                ${product.oldPrice!.toFixed(2)}
+                {formatCurrency(product.oldPrice!)}
               </p>
             )}
           </div>
@@ -195,10 +200,25 @@ export function ProductDetailScreen() {
               Quantity
             </p>
             <p className="text-xs text-muted-foreground">
-              {quantity} x ${product.price.toFixed(2)}
+              {quantity} x {formatCurrency(product.price)}
             </p>
           </div>
           <QtyStepper value={quantity} onChange={setQuantity} min={1} max={20} size="lg" />
+        </div>
+
+        <div className="mt-4">
+          <button
+            onClick={handleAdd}
+            className="tap w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5"
+          >
+            <span className="flex items-center gap-2.5">
+              <span className="w-7 h-7 rounded-full bg-primary-foreground/15 grid place-items-center">
+                <Plus className="w-4 h-4" strokeWidth={3} />
+              </span>
+              Add to cart
+            </span>
+            <span className="tabular-nums">{formatCurrency(product.price * quantity)}</span>
+          </button>
         </div>
 
         {related.length > 0 && (
@@ -213,21 +233,6 @@ export function ProductDetailScreen() {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="absolute left-0 right-0 bottom-0 px-4 pb-4 pt-3 bg-surface border-t border-border">
-        <button
-          onClick={handleAdd}
-          className="tap w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5"
-        >
-          <span className="flex items-center gap-2.5">
-            <span className="w-7 h-7 rounded-full bg-primary-foreground/15 grid place-items-center">
-              <Plus className="w-4 h-4" strokeWidth={3} />
-            </span>
-            Add to cart
-          </span>
-          <span className="tabular-nums">${(product.price * quantity).toFixed(2)}</span>
-        </button>
       </div>
     </div>
   );

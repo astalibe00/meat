@@ -54,15 +54,19 @@ function getText(update: TelegramUpdate) {
 }
 
 async function sendWelcome(chatId: number | string) {
-  return sendMessage(chatId, buildWelcomeMessage(Boolean(getWebAppUrl())), {
+  await sendMessage(chatId, buildWelcomeMessage(Boolean(getWebAppUrl())), {
     reply_markup: mainReplyKeyboard(),
+  });
+
+  return sendMessage(chatId, "Asosiy menyu", {
+    reply_markup: mainInlineKeyboard(),
   });
 }
 
 async function sendShop(chatId: number | string) {
   return sendMessage(
     chatId,
-    "Choose a category to get a quick shortlist, or use Open Web App for the full store.",
+    "Kategoriya tanlang yoki to'liq checkout uchun Mini App tugmasini bosing.",
     {
       reply_markup: categoryInlineKeyboard(),
     },
@@ -73,23 +77,32 @@ async function routeText(chatId: number | string, text: string) {
   const normalized = text.toLowerCase();
 
   if (normalized === "/start" || normalized === "/menu") {
-    await sendWelcome(chatId);
-    return sendMessage(chatId, "Main actions", {
-      reply_markup: mainInlineKeyboard(),
-    });
+    return sendWelcome(chatId);
   }
 
-  if (normalized === "/shop" || normalized === "shop") {
+  if (
+    normalized === "/shop" ||
+    normalized === "shop" ||
+    normalized === "katalog"
+  ) {
     return sendShop(chatId);
   }
 
-  if (normalized === "/deals" || normalized === "deals") {
+  if (
+    normalized === "/deals" ||
+    normalized === "deals" ||
+    normalized === "aksiyalar"
+  ) {
     return sendMessage(chatId, buildDealsMessage(), {
       reply_markup: mainInlineKeyboard(),
     });
   }
 
-  if (normalized === "/delivery" || normalized === "delivery") {
+  if (
+    normalized === "/delivery" ||
+    normalized === "delivery" ||
+    normalized === "yetkazib berish"
+  ) {
     return sendMessage(chatId, buildDeliveryMessage(), {
       reply_markup: mainInlineKeyboard(),
     });
@@ -101,24 +114,28 @@ async function routeText(chatId: number | string, text: string) {
     });
   }
 
-  if (normalized === "open web app") {
+  if (normalized === "mini app" || normalized === "open web app") {
     const webAppUrl = getWebAppUrl();
     if (!webAppUrl) {
       return sendMessage(
         chatId,
-        "Open Web App will become available after TELEGRAM_WEBAPP_URL is configured on Vercel.",
+        "Mini App URL hali sozlanmagan. Vercel env ichida TELEGRAM_WEBAPP_URL yoki MINI_APP_URL ni belgilang.",
         {
           reply_markup: mainInlineKeyboard(),
         },
       );
     }
 
-    return sendMessage(chatId, "Open the web app to browse the full catalogue and checkout.", {
+    return sendMessage(chatId, "Mini App tugmasi orqali to'liq katalog va checkoutni oching.", {
       reply_markup: mainInlineKeyboard(),
     });
   }
 
-  const category = BOT_CATEGORIES.find((item) => item.title.toLowerCase() === normalized);
+  const category = BOT_CATEGORIES.find(
+    (item) =>
+      item.title.toLowerCase() === normalized ||
+      item.id.toLowerCase() === normalized,
+  );
   if (category) {
     return sendMessage(chatId, buildCategoryMessage(category.id), {
       reply_markup: mainInlineKeyboard(),
@@ -127,7 +144,7 @@ async function routeText(chatId: number | string, text: string) {
 
   return sendMessage(
     chatId,
-    "Use Shop, Deals, Delivery, Support, or Open Web App from the menu below.",
+    "Katalog, Aksiyalar, Yetkazib berish, Support yoki Mini App tugmalaridan foydalaning.",
     {
       reply_markup: mainReplyKeyboard(),
     },
@@ -144,26 +161,25 @@ async function routeCallback(update: TelegramUpdate) {
   }
 
   if (data === "menu:start") {
-    await answerCallbackQuery(callbackQuery.id, "Main menu");
+    await answerCallbackQuery(callbackQuery.id, "Asosiy menyu");
     await sendWelcome(chatId);
-    await sendMessage(chatId, "Main actions", { reply_markup: mainInlineKeyboard() });
     return;
   }
 
   if (data === "menu:shop") {
-    await answerCallbackQuery(callbackQuery.id, "Shop");
+    await answerCallbackQuery(callbackQuery.id, "Katalog");
     await sendShop(chatId);
     return;
   }
 
   if (data === "menu:deals") {
-    await answerCallbackQuery(callbackQuery.id, "Deals");
+    await answerCallbackQuery(callbackQuery.id, "Aksiyalar");
     await sendMessage(chatId, buildDealsMessage(), { reply_markup: mainInlineKeyboard() });
     return;
   }
 
   if (data === "menu:delivery") {
-    await answerCallbackQuery(callbackQuery.id, "Delivery");
+    await answerCallbackQuery(callbackQuery.id, "Yetkazib berish");
     await sendMessage(chatId, buildDeliveryMessage(), {
       reply_markup: mainInlineKeyboard(),
     });
@@ -180,7 +196,7 @@ async function routeCallback(update: TelegramUpdate) {
 
   if (data.startsWith("category:")) {
     const categoryId = data.replace("category:", "");
-    await answerCallbackQuery(callbackQuery.id, "Category loaded");
+    await answerCallbackQuery(callbackQuery.id, "Kategoriya yuklandi");
     await sendMessage(chatId, buildCategoryMessage(categoryId), {
       reply_markup: mainInlineKeyboard(),
     });
@@ -203,7 +219,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   if (!getTelegramToken()) {
-    res.status(500).json({ ok: false, error: "TELEGRAM_BOT_TOKEN is missing" });
+    res.status(500).json({ ok: false, error: "TELEGRAM_BOT_TOKEN/BOT_TOKEN is missing" });
     return;
   }
 
@@ -211,11 +227,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const headerSecret = req.headers?.["x-telegram-bot-api-secret-token"];
   const expectedSecret = getWebhookSecret();
 
-  if (
-    expectedSecret &&
-    querySecret !== expectedSecret &&
-    headerSecret !== expectedSecret
-  ) {
+  if (expectedSecret && querySecret !== expectedSecret && headerSecret !== expectedSecret) {
     res.status(401).json({ ok: false, error: "Invalid webhook secret" });
     return;
   }

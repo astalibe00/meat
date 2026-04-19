@@ -17,6 +17,7 @@ import {
 } from "@/data/products";
 import { ProductCard } from "@/components/app/ProductCard";
 import { SectionHeader } from "@/components/app/SectionHeader";
+import { formatCurrency } from "@/lib/format";
 import banner1 from "@/assets/banners/banner-1.jpg";
 import banner2 from "@/assets/banners/banner-2.jpg";
 import banner3 from "@/assets/banners/banner-3.jpg";
@@ -44,7 +45,7 @@ const banners = [
     id: 3,
     img: banner3,
     eyebrow: "Free delivery",
-    title: `On every order\nover $${FREE_SHIPPING_THRESHOLD}`,
+    title: `On every order\nover ${formatCurrency(FREE_SHIPPING_THRESHOLD)}`,
     cta: "Start shopping",
     accent: "from-primary/90 via-primary/45",
     action: { name: "categories" } as const,
