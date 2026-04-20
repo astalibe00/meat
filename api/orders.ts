@@ -1,4 +1,3 @@
-import { DELIVERY_FEE, FREE_SHIPPING_THRESHOLD } from "../src/data/products.js";
 import {
   getInitialPaymentStatus,
   isOnlinePayment,
@@ -62,6 +61,9 @@ interface ApiResponse {
   status: (code: number) => ApiResponse;
   json: (payload: unknown) => void;
 }
+
+const FREE_SHIPPING_THRESHOLD = 900000;
+const DELIVERY_FEE = 85000;
 
 function getRecipients() {
   return [...new Set([...getAdminChatIds(), getChannelId()].filter(Boolean))];
