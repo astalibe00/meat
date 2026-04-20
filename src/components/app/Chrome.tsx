@@ -4,15 +4,17 @@ import { useApp } from "@/store/useApp";
 export function TopHeader() {
   const navigate = useApp((state) => state.navigate);
   const checkout = useApp((state) => state.checkout);
-  const savedAddresses = useApp((state) => state.savedAddresses);
-  const selectedAddress = savedAddresses.find((address) => address.id === checkout.addressId);
+  const pickupPoints = useApp((state) => state.pickupPoints);
+  const activePickupPoint = pickupPoints.find((point) => point.id === checkout.pickupPointId);
   const addressLabel =
-    selectedAddress?.label || checkout.address.split(",")[0]?.trim() || "Manzil";
+    checkout.fulfillmentType === "pickup"
+      ? activePickupPoint?.title ?? "Tarqatish punkti"
+      : checkout.address.split(",")[0]?.trim() || "Manzil";
 
   return (
     <header className="h-[calc(56px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-surface px-4 flex items-center justify-between border-b border-border/50">
       <button
-        onClick={() => navigate({ name: "checkout" })}
+        onClick={() => navigate({ name: "addresses" })}
         className="tap flex items-center gap-2 active:scale-95 transition-transform"
       >
         <span className="w-8 h-8 rounded-full bg-primary-soft text-primary grid place-items-center">
@@ -20,7 +22,7 @@ export function TopHeader() {
         </span>
         <div className="flex flex-col leading-none text-left">
           <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-            Yetkazish
+            {checkout.fulfillmentType === "pickup" ? "Olib ketish" : "Yetkazish"}
           </span>
           <span className="text-xs font-bold flex items-center gap-1 mt-0.5">
             {addressLabel}

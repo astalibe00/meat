@@ -1,11 +1,24 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { PRODUCTS } from "@/data/products";
 import { CartScreen } from "@/screens/CartScreen";
 import { CheckoutScreen } from "@/screens/CheckoutScreen";
-import { DEFAULT_ADDRESSES, useApp } from "@/store/useApp";
+import { useApp } from "@/store/useApp";
+import type { ManagedProduct } from "@/types/app-data";
 
 const initialState = useApp.getInitialState();
+
+function toManagedProduct(index = 0): ManagedProduct {
+  const product = PRODUCTS[index];
+  return {
+    ...product,
+    stockKg: 20,
+    minOrderKg: 0.3,
+    enabled: true,
+    rating: 4.8,
+    reviewCount: 0,
+  };
+}
 
 function resetStore() {
   window.localStorage.clear();
@@ -13,17 +26,29 @@ function resetStore() {
 }
 
 function seedCartAndCheckout() {
-  const product = PRODUCTS[0];
+  const product = toManagedProduct();
 
   useApp.setState(
     {
       ...initialState,
-      cart: [{ product, quantity: 1, weightOption: product.weightOptions?.[0] }],
-      savedAddresses: DEFAULT_ADDRESSES,
+      products: [product],
+      pickupPoints: [
+        {
+          id: "pickup-1",
+          title: "Yunusobod punkti",
+          address: "Yunusobod tumani",
+          landmark: "Metro yonida",
+          hours: "09:00 - 21:00",
+        },
+      ],
+      cart: [{ product, quantity: 1, weightOption: product.weightOptions?.[0] ?? product.weight }],
       checkout: {
         ...initialState.checkout,
-        addressId: DEFAULT_ADDRESSES[0].id,
-        address: DEFAULT_ADDRESSES[0].address,
+        name: "Test mijoz",
+        phone: "+998901234567",
+        address: "Yunusobod tumani, 14-kvartal",
+        addressLabel: "Uy",
+        paymentMethod: "click",
       },
     },
     true,
@@ -35,6 +60,7 @@ function seedCartAndCheckout() {
 describe("mini app state flows", () => {
   beforeEach(() => {
     resetStore();
+    vi.restoreAllMocks();
   });
 
   it("updates cart quantity and removes items from the cart screen", () => {
@@ -50,55 +76,55 @@ describe("mini app state flows", () => {
     expect(screen.getByText("Savatingiz hozircha bo'sh")).toBeInTheDocument();
   });
 
-  it("selects a saved address and writes it into checkout", () => {
+  it("switches from delivery to pickup and stores the pickup point", () => {
     seedCartAndCheckout();
 
     render(<CheckoutScreen />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Ofis/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tarqatish punkti/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Yunusobod punkti/i }));
 
-    expect(useApp.getState().checkout.addressId).toBe("office");
-    expect(useApp.getState().checkout.address).toContain("Oybek ko'chasi");
+    expect(useApp.getState().checkout.fulfillmentType).toBe("pickup");
+    expect(useApp.getState().checkout.pickupPointId).toBe("pickup-1");
   });
 
-  it("keeps a custom address and label while the user edits delivery details", () => {
+  it("keeps a custom address while the user edits delivery details", () => {
     seedCartAndCheckout();
 
     render(<CheckoutScreen />);
 
-    const labelInput = screen.getByPlaceholderText("Masalan: Uy, Ofis, Ota-ona uyi");
-    const addressInput = screen.getByPlaceholderText("Ko'cha, uy, kirish, qavat, mo'ljal");
+    const addressInput = screen.getByPlaceholderText(
+      "Masalan: Yunusobod tumani, 14-kvartal, 23-uy",
+    );
     const customAddress = "Chilonzor tumani, 19-kvartal, 12-uy";
 
-    fireEvent.change(labelInput, { target: { value: "Dacha" } });
     fireEvent.change(addressInput, { target: { value: customAddress } });
 
-    expect(useApp.getState().checkout.addressId).toBe("");
     expect(useApp.getState().checkout.address).toBe(customAddress);
-    expect((labelInput as HTMLInputElement).value).toBe("Dacha");
   });
 
-  it("rehydrates a custom address without snapping back to the default saved address", async () => {
+  it("rehydrates checkout details with a persisted custom address", async () => {
     const customAddress = "Yakkasaroy tumani, Shota Rustaveli ko'chasi, 55-uy";
 
     window.localStorage.setItem(
       "fresh-halal-direct-state",
       JSON.stringify({
         state: {
-          savedAddresses: DEFAULT_ADDRESSES,
           checkout: {
             ...initialState.checkout,
-            addressId: "",
             address: customAddress,
+            addressLabel: "Ofis",
+            paymentMethod: "payme",
           },
         },
-        version: 2,
+        version: 3,
       }),
     );
 
     await useApp.persist.rehydrate();
 
-    expect(useApp.getState().checkout.addressId).toBe("saved-current");
     expect(useApp.getState().checkout.address).toBe(customAddress);
+    expect(useApp.getState().checkout.addressLabel).toBe("Ofis");
+    expect(useApp.getState().checkout.paymentMethod).toBe("payme");
   });
 });

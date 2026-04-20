@@ -29,7 +29,12 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
   const openProduct = () => navigate({ name: "product", id: product.id });
 
   const handleAdd = () => {
-    addToCart(product, 1, product.weightOptions?.[0]);
+    const result = addToCart(product, 1, product.weightOptions?.[0]);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
     setBump(true);
     window.setTimeout(() => setBump(false), 350);
     toast.success(`${product.name} savatga qo'shildi`, {

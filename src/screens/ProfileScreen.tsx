@@ -17,6 +17,7 @@ export function ProfileScreen() {
   const favorites = useApp((state) => state.favorites);
   const orders = useApp((state) => state.orders);
   const checkout = useApp((state) => state.checkout);
+  const supportContact = useApp((state) => state.supportContact);
   const cartCount = useApp((state) => state.cartCount());
   const resetDemoData = useApp((state) => state.resetDemoData);
 
@@ -43,8 +44,11 @@ export function ProfileScreen() {
     {
       Icon: MapPin,
       label: "Yetkazish ma'lumoti",
-      hint: checkout.address,
-      onClick: () => navigate({ name: "checkout" }),
+      hint:
+        checkout.fulfillmentType === "pickup"
+          ? "Tarqatish punkti"
+          : checkout.address || "Alohida sozlash oynasi",
+      onClick: () => navigate({ name: "addresses" }),
     },
     {
       Icon: ShoppingBag,
@@ -121,7 +125,17 @@ export function ProfileScreen() {
           Do'kon sozlamalari
         </div>
         <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-          Buyurtmalarda saqlangan kontakt va manzil ma'lumotlari ishlatiladi. Ularni rasmiylashtirish oynasida istalgan payt yangilashingiz mumkin.
+          Buyurtmalarda saqlangan kontakt va manzil ma'lumotlari ishlatiladi. Ularni alohida profil bo'limida yangilaysiz.
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-border bg-paper p-4">
+        <p className="text-sm font-semibold">Support</p>
+        <p className="text-xs text-muted-foreground mt-1.5">
+          Telefon: {supportContact.phone}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Telegram: {supportContact.telegram.replace("https://", "")}
         </p>
       </div>
 

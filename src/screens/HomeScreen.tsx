@@ -12,8 +12,6 @@ import { useApp } from "@/store/useApp";
 import {
   CATEGORIES,
   FREE_SHIPPING_THRESHOLD,
-  PRODUCTS,
-  getProductsByTag,
 } from "@/data/products";
 import { ProductCard } from "@/components/app/ProductCard";
 import { SectionHeader } from "@/components/app/SectionHeader";
@@ -61,9 +59,10 @@ const TRUST_PILLS = [
 
 export function HomeScreen() {
   const navigate = useApp((state) => state.navigate);
-  const popular = getProductsByTag("Popular");
-  const sale = PRODUCTS.filter((product) => Boolean(product.oldPrice));
-  const fresh = getProductsByTag("Fresh");
+  const products = useApp((state) => state.products);
+  const popular = products.filter((product) => product.tags.includes("Popular"));
+  const sale = products.filter((product) => Boolean(product.oldPrice));
+  const fresh = products.filter((product) => product.tags.includes("Fresh"));
 
   return (
     <div className="animate-screen-in pb-6">

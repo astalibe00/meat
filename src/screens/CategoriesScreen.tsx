@@ -3,7 +3,7 @@ import { PackageSearch, SlidersHorizontal } from "lucide-react";
 import { FilterChip } from "@/components/app/FilterChip";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ProductCard } from "@/components/app/ProductCard";
-import { CATEGORIES, PRODUCTS, type CategoryId } from "@/data/products";
+import { CATEGORIES, type CategoryId } from "@/data/products";
 import { useApp, type CatalogSort } from "@/store/useApp";
 
 const SORTS: { id: CatalogSort; label: string }[] = [
@@ -16,6 +16,7 @@ const SORTS: { id: CatalogSort; label: string }[] = [
 
 export function CategoriesScreen() {
   const screen = useApp((state) => state.screen);
+  const allProducts = useApp((state) => state.products.filter((product) => product.enabled));
   const [active, setActive] = useState<CategoryId | "all">("all");
   const [sort, setSort] = useState<CatalogSort>("popular");
   const [onlySale, setOnlySale] = useState(false);
@@ -31,7 +32,10 @@ export function CategoriesScreen() {
   }, [screen]);
 
   const products = useMemo(() => {
-    let list = active === "all" ? PRODUCTS : PRODUCTS.filter((product) => product.category === active);
+    let list =
+      active === "all"
+        ? allProducts
+        : allProducts.filter((product) => product.category === active);
 
     if (onlySale) {
       list = list.filter((product) => Boolean(product.oldPrice));
@@ -65,7 +69,7 @@ export function CategoriesScreen() {
     }
 
     return sorted;
-  }, [active, onlySale, sort]);
+  }, [active, allProducts, onlySale, sort]);
 
   const activeCategory = CATEGORIES.find((category) => category.id === active);
 
@@ -86,12 +90,12 @@ export function CategoriesScreen() {
           <FilterChip
             active={active === "all"}
             onClick={() => setActive("all")}
-            count={PRODUCTS.length}
+            count={allProducts.length}
           >
             Barchasi
           </FilterChip>
           {CATEGORIES.map((category) => {
-            const count = PRODUCTS.filter((product) => product.category === category.id).length;
+            const count = allProducts.filter((product) => product.category === category.id).length;
             return (
               <FilterChip
                 key={category.id}

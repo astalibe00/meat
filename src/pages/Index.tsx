@@ -1,4 +1,6 @@
 import React from "react";
+import { Smartphone } from "lucide-react";
+import { AddressesScreen } from "@/screens/AddressesScreen";
 import { BottomNav } from "@/components/app/BottomNav";
 import { TopHeader } from "@/components/app/Chrome";
 import { CartScreen } from "@/screens/CartScreen";
@@ -68,6 +70,8 @@ export default function Index() {
         return <OrdersScreen />;
       case "support":
         return <SupportScreen />;
+      case "addresses":
+        return <AddressesScreen />;
       case "product":
         return <ProductDetailScreen />;
       case "profile":
@@ -82,8 +86,29 @@ export default function Index() {
   const hideHeader = HEADER_HIDDEN_SCREENS.has(screen.name as "product");
 
   return (
-    <div className="min-h-screen w-full bg-white flex items-center justify-center sm:p-4">
-      <div className="relative w-full max-w-[430px] h-screen sm:h-[920px] sm:max-h-[920px] sm:rounded-[44px] overflow-hidden bg-background shadow-elevated sm:border sm:border-border">
+    <div className="min-h-screen w-full bg-white flex items-center justify-center">
+      <div className="mobile-lock hidden sm:flex fixed inset-0 bg-foreground/88 backdrop-blur-xl z-50 items-center justify-center p-6">
+        <div className="max-w-sm rounded-[32px] bg-surface p-6 text-center shadow-elevated">
+          <div className="mx-auto w-14 h-14 rounded-full bg-primary-soft text-primary grid place-items-center">
+            <Smartphone className="w-7 h-7" strokeWidth={2.2} />
+          </div>
+          <h2 className="mt-4 font-serif text-2xl font-semibold">Mini App faqat mobile uchun</h2>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            Telegram Mini App portret holatda ochilishi kerak. Telefoningizda qayta oching.
+          </p>
+        </div>
+      </div>
+
+      <div className="orientation-lock hidden landscape:flex fixed inset-0 bg-foreground/88 backdrop-blur-xl z-40 items-center justify-center p-6 sm:hidden">
+        <div className="max-w-sm rounded-[32px] bg-surface p-6 text-center shadow-elevated">
+          <h2 className="font-serif text-2xl font-semibold">Portret holatga o‘ting</h2>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            Mini App faqat vertical ko‘rinishda ishlaydi.
+          </p>
+        </div>
+      </div>
+
+      <div className="relative w-full max-w-[430px] h-screen overflow-hidden bg-background shadow-elevated">
         {!hideHeader && <TopHeader />}
 
         <main

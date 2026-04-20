@@ -21,6 +21,6 @@ describe("telegram bot copy", () => {
 
   it("keeps the welcome message actionable", () => {
     expect(buildWelcomeMessage(true)).toContain("Mini App");
-    expect(buildSupportMessage()).toContain("buyurtma ID");
+    expect(buildSupportMessage()).toContain("+998990197548");
   });
 });

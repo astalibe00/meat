@@ -87,6 +87,7 @@ export function mainReplyKeyboard() {
   return {
     keyboard: [
       firstRow,
+      [{ text: "Telefonni ulashish", request_contact: true }],
       [{ text: "Katalog" }, { text: "Aksiyalar" }],
       [{ text: "Yetkazib berish" }, { text: "Yordam" }],
     ],
@@ -146,6 +147,37 @@ export async function answerCallbackQuery(callbackQueryId: string, text?: string
     callback_query_id: callbackQueryId,
     text,
   });
+}
+
+export async function editMessageReplyMarkup(
+  chatId: number | string,
+  messageId: number,
+  replyMarkup: TelegramPayload,
+) {
+  return telegramApi("editMessageReplyMarkup", {
+    chat_id: chatId,
+    message_id: messageId,
+    reply_markup: replyMarkup,
+  });
+}
+
+export function orderActionKeyboard(orderId: string) {
+  return {
+    inline_keyboard: [
+      [
+        { text: "Tasdiqlash", callback_data: `order:${orderId}:confirmed` },
+        { text: "Tayyorlash", callback_data: `order:${orderId}:preparing` },
+      ],
+      [
+        { text: "Tayyor", callback_data: `order:${orderId}:ready` },
+        { text: "Yetkazilmoqda", callback_data: `order:${orderId}:delivering` },
+      ],
+      [
+        { text: "Yakunlandi", callback_data: `order:${orderId}:completed` },
+        { text: "Bekor qilish", callback_data: `order:${orderId}:cancelled` },
+      ],
+    ],
+  };
 }
 
 export function getBaseUrl(req: { headers?: Record<string, string | string[] | undefined> }) {

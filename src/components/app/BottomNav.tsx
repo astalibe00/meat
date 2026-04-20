@@ -29,6 +29,7 @@ export function BottomNav() {
     if (name === "profile") {
       return (
         screen.name === "profile" ||
+        screen.name === "addresses" ||
         screen.name === "favorites" ||
         screen.name === "orders" ||
         screen.name === "support"

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Clock, Search, SearchX, TrendingUp, X } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ProductCard } from "@/components/app/ProductCard";
-import { CATEGORIES, PRODUCTS } from "@/data/products";
+import { CATEGORIES } from "@/data/products";
 import { useApp } from "@/store/useApp";
 
 const POPULAR_QUERIES = [
@@ -19,6 +19,7 @@ export function SearchScreen() {
   const pushRecentSearch = useApp((state) => state.pushRecentSearch);
   const clearRecentSearches = useApp((state) => state.clearRecentSearches);
   const navigate = useApp((state) => state.navigate);
+  const products = useApp((state) => state.products.filter((product) => product.enabled));
   const [query, setQuery] = useState("");
 
   const results = useMemo(() => {
@@ -27,14 +28,14 @@ export function SearchScreen() {
       return [];
     }
 
-    return PRODUCTS.filter(
+    return products.filter(
       (product) =>
         product.name.toLowerCase().includes(term) ||
         product.tags.some((tag) => tag.toLowerCase().includes(term)) ||
         product.category.includes(term) ||
         product.description.toLowerCase().includes(term),
     );
-  }, [query]);
+  }, [products, query]);
 
   const onSubmit = () => {
     if (query.trim()) {

@@ -1,70 +1,43 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Clock3, MapPin, Phone, User } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  AlertCircle,
+  CreditCard,
+  MapPinned,
+  Phone,
+  Store,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/app/EmptyState";
 import { formatCurrency } from "@/lib/format";
-import { getTelegramUser } from "@/lib/telegram-webapp";
-import { useApp, type Order, type SavedAddress } from "@/store/useApp";
+import {
+  PAYMENT_METHOD_LABELS,
+  getInitialOrderStatus,
+  isOnlinePayment,
+} from "@/lib/order-status";
+import { useApp } from "@/store/useApp";
 
-const DELIVERY_WINDOWS = [
-  "Bugun, 18:00 - 20:00",
-  "Bugun, 20:00 - 22:00",
-  "Ertaga, 10:00 - 13:00",
-  "Ertaga, 14:00 - 17:00",
-];
-
-function buildAddressDraft(address?: SavedAddress) {
-  return {
-    id: address?.id,
-    label: address?.label ?? "",
-  };
-}
-
-async function notifyOrder(order: Order) {
-  const response = await fetch("/api/orders", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      order,
-      telegramUser: getTelegramUser(),
-      source: "mini-app",
-    }),
-  });
-
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error ?? "Telegram xabari yuborilmadi");
-  }
-}
+const PAYMENT_OPTIONS = ["humo", "uzcard", "click", "payme", "paynet", "cash"] as const;
 
 export function CheckoutScreen() {
   const cart = useApp((state) => state.cart);
   const checkout = useApp((state) => state.checkout);
-  const savedAddresses = useApp((state) => state.savedAddresses);
+  const pickupPoints = useApp((state) => state.pickupPoints);
   const updateCheckout = useApp((state) => state.updateCheckout);
-  const selectAddress = useApp((state) => state.selectAddress);
-  const saveAddress = useApp((state) => state.saveAddress);
+  const setFulfillmentType = useApp((state) => state.setFulfillmentType);
+  const selectPickupPoint = useApp((state) => state.selectPickupPoint);
+  const detectCurrentLocation = useApp((state) => state.detectCurrentLocation);
   const getCartPricing = useApp((state) => state.cartPricing);
   const placeOrder = useApp((state) => state.placeOrder);
   const navigate = useApp((state) => state.navigate);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+
   const pricing = getCartPricing();
-  const selectedAddress = useMemo(
-    () => savedAddresses.find((address) => address.id === checkout.addressId),
-    [checkout.addressId, savedAddresses],
+  const activePickupPoint = useMemo(
+    () => pickupPoints.find((point) => point.id === checkout.pickupPointId),
+    [checkout.pickupPointId, pickupPoints],
   );
-  const [addressDraft, setAddressDraft] = useState(() => buildAddressDraft(selectedAddress));
-
-  useEffect(() => {
-    if (selectedAddress) {
-      setAddressDraft(buildAddressDraft(selectedAddress));
-      return;
-    }
-
-    setAddressDraft((state) => ({ ...state, id: undefined }));
-  }, [selectedAddress]);
 
   if (cart.length === 0) {
     return (
@@ -86,21 +59,17 @@ export function CheckoutScreen() {
     );
   }
 
-  const handleSaveAddress = () => {
-    const nextLabel = addressDraft.label.trim() || selectedAddress?.label || "Yangi manzil";
-    const savedId = saveAddress({
-      id: addressDraft.id,
-      label: nextLabel,
-      address: checkout.address,
-    });
+  const handleLocate = async () => {
+    setIsLocating(true);
+    const result = await detectCurrentLocation();
+    setIsLocating(false);
 
-    if (!savedId) {
-      toast.error("Manzil nomi va to'liq manzilni kiriting.");
+    if (!result.ok) {
+      toast.error(result.error ?? "Manzil aniqlanmadi.");
       return;
     }
 
-    setAddressDraft((state) => ({ ...state, id: savedId, label: nextLabel }));
-    toast.success("Manzil saqlandi.");
+    toast.success("Manzil xarita bo'yicha yangilandi.");
   };
 
   const handlePlaceOrder = async () => {
@@ -108,27 +77,21 @@ export function CheckoutScreen() {
       return;
     }
 
-    if (!checkout.name.trim() || !checkout.phone.trim() || !checkout.address.trim()) {
-      toast.error("Ism, telefon va manzilni to'ldiring.");
-      return;
-    }
-
     setIsSubmitting(true);
-    const order = placeOrder();
-    if (!order) {
-      setIsSubmitting(false);
-      toast.error("Buyurtmani rasmiylashtirib bo'lmadi. Savatni tekshirib qayta urinib ko'ring.");
+    const result = await placeOrder();
+    setIsSubmitting(false);
+
+    if (!result.ok || !result.order) {
+      toast.error(result.error ?? "Buyurtma yuborilmadi.");
       return;
     }
 
-    toast.success(`Buyurtma ${order.id} tasdiqlandi`, {
-      description: `${order.customer.deliveryWindow} uchun tayyorlaymiz.`,
-    });
-
-    void notifyOrder(order).catch((error) => {
-      toast.error("Buyurtma saqlandi, lekin botga yuborilmadi.", {
-        description: error instanceof Error ? error.message : "Keyinroq qayta urinib ko'ring.",
-      });
+    const orderStatus = getInitialOrderStatus(checkout.paymentMethod);
+    toast.success(`Buyurtma ${result.order.id} yaratildi`, {
+      description:
+        orderStatus === "preparing"
+          ? "Online to'lov qabul qilindi, tayyorlash boshlandi."
+          : "Buyurtma admin tasdig'iga yuborildi.",
     });
   };
 
@@ -141,16 +104,16 @@ export function CheckoutScreen() {
         Yetkazib berish ma'lumotlari
       </h1>
       <p className="text-sm text-muted-foreground mt-1">
-        Kontakt ma'lumotlari, manzil va vaqt oralig'ini tasdiqlang.
+        Ism va telefon botdan olinadi, manzil esa xarita yoki tarqatish punkti orqali tanlanadi.
       </p>
 
       <div className="mt-5 space-y-3">
-        <Field label="Ism" icon={<User className="w-4 h-4" strokeWidth={2.25} />}>
+        <Field label="Mijoz" icon={<User className="w-4 h-4" strokeWidth={2.25} />}>
           <input
             value={checkout.name}
             onChange={(event) => updateCheckout({ name: event.target.value })}
             className="w-full bg-transparent outline-none text-sm"
-            placeholder="Ismingiz va familiyangiz"
+            placeholder="Telegramdagi ism"
           />
         </Field>
 
@@ -164,92 +127,122 @@ export function CheckoutScreen() {
         </Field>
 
         <div className="rounded-2xl bg-surface p-4 shadow-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-2">
-            <MapPin className="w-4 h-4" strokeWidth={2.25} />
-            Yetkazib berish manzili
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Yetkazish usuli
           </p>
-
-          <div className="mt-3 grid gap-2">
-            {savedAddresses.map((address) => {
-              const selected = address.id === checkout.addressId;
-
-              return (
-                <button
-                  key={address.id}
-                  onClick={() => {
-                    selectAddress(address.id);
-                    setAddressDraft(buildAddressDraft(address));
-                  }}
-                  className={`tap w-full rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${
-                    selected ? "border-primary bg-primary-soft/60" : "border-border bg-paper"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">{address.label}</p>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        {address.address}
-                      </p>
-                    </div>
-                    <span
-                      className={`w-4 h-4 rounded-full border-2 shrink-0 ${
-                        selected ? "border-primary bg-primary" : "border-border"
-                      }`}
-                    />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 border-t border-dashed border-border pt-4 space-y-3">
-            <input
-              value={addressDraft.label}
-              onChange={(event) =>
-                setAddressDraft((state) => ({ ...state, label: event.target.value }))
-              }
-              className="w-full rounded-2xl bg-paper px-4 py-3 text-sm outline-none border border-border"
-              placeholder="Masalan: Uy, Ofis, Ota-ona uyi"
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <SelectableCard
+              selected={checkout.fulfillmentType === "delivery"}
+              title="Yetkazib berish"
+              body="Xarita bo'yicha manzil belgilanadi"
+              onClick={() => setFulfillmentType("delivery")}
             />
-            <textarea
-              value={checkout.address}
-              onChange={(event) => updateCheckout({ address: event.target.value })}
-              className="w-full rounded-2xl bg-paper px-4 py-3 text-sm outline-none border border-border resize-none min-h-[96px]"
-              placeholder="Ko'cha, uy, kirish, qavat, mo'ljal"
+            <SelectableCard
+              selected={checkout.fulfillmentType === "pickup"}
+              title="Tarqatish punkti"
+              body="Do'kondan o'zi olib ketish"
+              onClick={() => setFulfillmentType("pickup")}
             />
-            <button
-              onClick={handleSaveAddress}
-              className="tap h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform"
-            >
-              Manzilni saqlash
-            </button>
           </div>
         </div>
 
-        <Field label="Yetkazish vaqti" icon={<Clock3 className="w-4 h-4" strokeWidth={2.25} />}>
-          <select
-            value={checkout.deliveryWindow}
-            onChange={(event) => updateCheckout({ deliveryWindow: event.target.value })}
-            className="w-full bg-transparent outline-none text-sm"
-          >
-            {DELIVERY_WINDOWS.map((slot) => (
-              <option key={slot} value={slot}>
-                {slot}
-              </option>
+        {checkout.fulfillmentType === "delivery" ? (
+          <div className="rounded-2xl bg-surface p-4 shadow-card">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-2">
+              <MapPinned className="w-4 h-4" strokeWidth={2.25} />
+              Yetkazib berish manzili
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+              Joriy joylashuvni aniqlang yoki real manzilni yozing. Xarita koordinatalari buyurtmaga birga yuboriladi.
+            </p>
+
+            <div className="mt-3 rounded-2xl bg-paper p-3">
+              <textarea
+                value={checkout.address}
+                onChange={(event) => updateCheckout({ address: event.target.value })}
+                className="w-full bg-transparent outline-none text-sm resize-none min-h-[88px]"
+                placeholder="Masalan: Yunusobod tumani, 14-kvartal, 23-uy"
+              />
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleLocate}
+                disabled={isLocating}
+                className="tap flex-1 h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform disabled:opacity-60 disabled:active:scale-100"
+              >
+                {isLocating ? "Aniqlanmoqda..." : "Xaritadan aniqlash"}
+              </button>
+              <button
+                onClick={() => navigate({ name: "addresses" })}
+                className="tap h-11 px-5 rounded-full bg-paper border border-border text-sm font-semibold active:scale-95 transition-transform"
+              >
+                Alohida oynada
+              </button>
+            </div>
+
+            {checkout.coordinates && (
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Koordinata: {checkout.coordinates.lat.toFixed(5)}, {checkout.coordinates.lon.toFixed(5)}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-surface p-4 shadow-card">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-2">
+              <Store className="w-4 h-4" strokeWidth={2.25} />
+              Tarqatish punktini tanlang
+            </p>
+            <div className="mt-3 grid gap-2">
+              {pickupPoints.map((point) => (
+                <SelectableCard
+                  key={point.id}
+                  selected={point.id === checkout.pickupPointId}
+                  title={point.title}
+                  body={`${point.address} • ${point.hours}`}
+                  onClick={() => selectPickupPoint(point.id)}
+                />
+              ))}
+            </div>
+            {activePickupPoint && (
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                Mo'ljal: {activePickupPoint.landmark}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="rounded-2xl bg-surface p-4 shadow-card">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-2">
+            <CreditCard className="w-4 h-4" strokeWidth={2.25} />
+            To'lov turi
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {PAYMENT_OPTIONS.map((method) => (
+              <SelectableCard
+                key={method}
+                selected={checkout.paymentMethod === method}
+                title={PAYMENT_METHOD_LABELS[method]}
+                body={isOnlinePayment(method) ? "To'lovdan keyin tayyorlash boshlanadi" : "Buyurtma kelganda yoki terminal orqali"}
+                onClick={() => updateCheckout({ paymentMethod: method })}
+              />
             ))}
-          </select>
-        </Field>
+          </div>
+        </div>
 
         <div className="rounded-2xl bg-surface p-4 shadow-card">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Kuryer uchun izoh
+            Buyurtma izohi
           </p>
           <textarea
             value={checkout.notes}
             onChange={(event) => updateCheckout({ notes: event.target.value })}
-            placeholder="Domofon kodi, qavat, oldindan qo'ng'iroq qilish kabi eslatmalar"
-            className="w-full bg-transparent outline-none text-sm resize-none min-h-[80px] mt-2"
+            placeholder="Qo'shimcha eslatma, domofon kodi yoki katta buyurtma tafsiloti"
+            className="w-full bg-transparent outline-none text-sm resize-none min-h-[88px] mt-2"
           />
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Katta buyurtmalar uchun +998990197548 raqamiga qo'ng'iroq qiling.
+          </p>
         </div>
       </div>
 
@@ -278,14 +271,8 @@ export function CheckoutScreen() {
         <div className="border-t border-dashed border-border my-4" />
         <div className="space-y-2 text-sm">
           <SummaryRow label="Oraliq summa" value={formatCurrency(pricing.subtotal)} />
-          {pricing.promoDiscount > 0 && (
-            <SummaryRow
-              label={`Promo ${pricing.activePromoCode}`}
-              value={`-${formatCurrency(pricing.promoDiscount)}`}
-            />
-          )}
           <SummaryRow
-            label="Yetkazib berish"
+            label={checkout.fulfillmentType === "pickup" ? "Olib ketish" : "Yetkazib berish"}
             value={pricing.delivery === 0 ? "Bepul" : formatCurrency(pricing.delivery)}
           />
           <SummaryRow label="Jami" value={formatCurrency(pricing.total)} strong />
@@ -323,6 +310,30 @@ function Field({
       </p>
       <div className="mt-2">{children}</div>
     </div>
+  );
+}
+
+function SelectableCard({
+  selected,
+  title,
+  body,
+  onClick,
+}: {
+  selected: boolean;
+  title: string;
+  body: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`tap rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${
+        selected ? "border-primary bg-primary-soft/60" : "border-border bg-paper"
+      }`}
+    >
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{body}</p>
+    </button>
   );
 }
 

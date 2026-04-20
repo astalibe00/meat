@@ -75,7 +75,7 @@ export function buildDealsMessage() {
     "2. FREESHIP - istalgan savatga bepul yetkazib berish",
     "3. Oilaviy halol to'plam - haftalik xarid uchun foydali narx",
     "",
-    "Promo kodni rasmiylashtirishdan oldin savatchada kiriting.",
+    "Aksiyalar Mini App checkout oqimida qo'llanadi.",
   ].join("\n");
 }
 
@@ -84,10 +84,11 @@ export function buildDeliveryMessage() {
     "Yetkazib berish",
     "",
     "- 14:00 gacha berilgan buyurtmalar shu kuni jo'natiladi",
-    "- Kechki slotlar rasmiylashtirish oynasida tanlanadi",
-    "- Holat yangilanishlari sayt va botda ko'rinadi",
+    "- Yetkazish vaqtini mijoz tanlamaydi, admin oqimni boshqaradi",
+    "- Tarqatish punktidan olib ketish ham mavjud",
+    "- Holat yangilanishlari Mini App va botda ko'rinadi",
     "",
-    "Manzilni o'zgartirish kerak bo'lsa, Yordam bo'limidan yozing.",
+    "Manzilni checkout ichida xarita orqali belgilang.",
   ].join("\n");
 }
 
@@ -95,9 +96,9 @@ export function buildSupportMessage() {
   return [
     "Yordam",
     "",
-    "- Katalog orqali mahsulotlarni ko'ring",
-    "- Yetkazib berish bo'limidan dispatch ma'lumotini oling",
-    "- Yordam so'rovida buyurtma ID raqamini yozib yuboring",
+    "- FAQ va support kontaktlari Mini App ichida ko'rinadi",
+    "- Telefon: +998990197548",
+    "- Telegram: t.me/saidazizov_s",
     "",
     "Eng tez rasmiylashtirish uchun Mini App tugmasidan foydalaning.",
   ].join("\n");

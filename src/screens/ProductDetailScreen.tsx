@@ -4,9 +4,11 @@ import {
   ChevronLeft,
   Flame,
   Heart,
+  MessageSquareQuote,
   Plus,
   Share2,
   Shield,
+  Star,
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,8 +16,8 @@ import { ProductBadge } from "@/components/app/ProductBadge";
 import { ProductCard } from "@/components/app/ProductCard";
 import { QtyStepper } from "@/components/app/QtyStepper";
 import { SectionHeader } from "@/components/app/SectionHeader";
-import { getProductById, getRelatedProducts } from "@/data/products";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { getProductMaxUnits, getLineWeightKg } from "@/lib/weights";
 import { useApp } from "@/store/useApp";
 
 export function ProductDetailScreen() {
@@ -25,28 +27,45 @@ export function ProductDetailScreen() {
   const navigate = useApp((state) => state.navigate);
   const toggleFavorite = useApp((state) => state.toggleFavorite);
   const favorites = useApp((state) => state.favorites);
+  const products = useApp((state) => state.products.filter((product) => product.enabled));
+  const getProductById = useApp((state) => state.getProductById);
+  const getProductReviews = useApp((state) => state.getProductReviews);
 
   const productId = screen.name === "product" ? screen.id : "";
   const product = getProductById(productId);
   const isFavorite = favorites.includes(productId);
   const [quantity, setQuantity] = useState(1);
-  const [weight, setWeight] = useState<string | undefined>(product?.weightOptions?.[0]);
-  const related = useMemo(() => getRelatedProducts(productId, 4), [productId]);
+  const [weight, setWeight] = useState<string | undefined>(product?.weightOptions?.[0] ?? product?.weight);
+  const related = useMemo(
+    () =>
+      products
+        .filter((item) => item.id !== productId && item.category === product?.category)
+        .slice(0, 4),
+    [product?.category, productId, products],
+  );
+  const reviews = getProductReviews(productId);
 
   if (!product) {
     return null;
   }
 
   const onSale = Boolean(product.oldPrice);
+  const selectedWeight = weight ?? product.weight;
+  const selectedKg = getLineWeightKg(selectedWeight, product.weight);
+  const maxUnits = getProductMaxUnits(product.stockKg, selectedWeight, product.weight);
   const savings = onSale ? (product.oldPrice! - product.price) * quantity : 0;
 
   const handleAdd = () => {
-    addToCart(product, quantity, weight);
+    const result = addToCart(product, quantity, selectedWeight);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
     toast.success(`${quantity} x ${product.name} savatga qo'shildi`, {
-      description: `${weight ?? product.weight} - ${formatCurrency(product.price * quantity)}`,
+      description: `${selectedWeight} - ${formatCurrency(product.price * quantity)}`,
       duration: 1700,
     });
-    navigate({ name: "cart" });
   };
 
   const handleShare = async () => {
@@ -132,6 +151,11 @@ export function ProductDetailScreen() {
               {product.weight}
               {product.origin ? ` - ${product.origin}` : ""}
             </p>
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-[11px] font-semibold">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" strokeWidth={2.2} />
+              {product.rating.toFixed(1)}
+              <span className="text-muted-foreground">({product.reviewCount} sharh)</span>
+            </div>
           </div>
           <div className="text-right shrink-0">
             <p className="font-serif text-[26px] font-semibold leading-none text-primary tabular-nums">
@@ -153,27 +177,30 @@ export function ProductDetailScreen() {
             <div className="min-w-0">
               <p className="text-sm font-bold">100% halol sertifikatlangan</p>
               <p className="text-[11px] text-background/70 leading-tight mt-0.5">
-                Halol sertifikatli, qo'lda tayyorlangan va bir kunlik yetkazish uchun qadoqlangan
+                Halol sertifikatli, buyurtma tushishi bilan tayyorlanadi va nazorat ostida jo'natiladi.
               </p>
             </div>
           </div>
         </div>
 
-        {product.weightOptions && product.weightOptions.length > 1 && (
+        {product.weightOptions && product.weightOptions.length > 0 && (
           <div className="mt-5">
             <div className="flex items-center justify-between mb-2.5">
               <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 Vaznni tanlang
               </p>
-              <p className="text-[11px] text-muted-foreground">{weight}</p>
+              <p className="text-[11px] text-muted-foreground">{selectedWeight}</p>
             </div>
             <div className="flex gap-2 flex-wrap">
               {product.weightOptions.map((option) => (
                 <button
                   key={option}
-                  onClick={() => setWeight(option)}
+                  onClick={() => {
+                    setWeight(option);
+                    setQuantity(1);
+                  }}
                   className={`tap h-11 px-5 rounded-full text-sm font-bold border-2 active:scale-95 transition-all ${
-                    weight === option
+                    selectedWeight === option
                       ? "bg-foreground text-background border-foreground"
                       : "bg-surface text-foreground border-border"
                   }`}
@@ -193,27 +220,31 @@ export function ProductDetailScreen() {
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-2">
-          <TrustBullet Icon={Flame} label="Buyurtmaga tayyor" sub={product.prepTime ?? "Yangi"} />
-          <TrustBullet Icon={Truck} label="Bir kunlik" sub="14:00 gacha buyurtma" />
+          <TrustBullet Icon={Flame} label="Tayyorlash" sub={product.prepTime ?? "Yangi"} />
+          <TrustBullet Icon={Truck} label="Qoldiq" sub={`${product.stockKg} kg mavjud`} />
           <TrustBullet Icon={Shield} label="Sifat" sub="Ishonchli kafolat" />
         </div>
 
-        <div className="mt-6 flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">
-              Miqdor
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {quantity} x {formatCurrency(product.price)}
-            </p>
+        <div className="mt-6 rounded-2xl bg-paper p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">
+                Miqdor
+              </p>
+              <p className="text-xs text-muted-foreground">
+                1 birlik = {selectedKg} kg
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Maksimum {maxUnits} ta paket
+              </p>
+            </div>
+            <QtyStepper value={quantity} onChange={setQuantity} min={1} max={Math.max(1, maxUnits)} size="lg" />
           </div>
-          <QtyStepper value={quantity} onChange={setQuantity} min={1} max={20} size="lg" />
-        </div>
 
-        <div className="mt-4">
           <button
             onClick={handleAdd}
-            className="tap w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5"
+            disabled={maxUnits <= 0}
+            className="tap mt-4 w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5 disabled:opacity-50 disabled:active:scale-100"
           >
             <span className="flex items-center gap-2.5">
               <span className="w-7 h-7 rounded-full bg-primary-foreground/15 grid place-items-center">
@@ -223,6 +254,36 @@ export function ProductDetailScreen() {
             </span>
             <span className="tabular-nums">{formatCurrency(product.price * quantity)}</span>
           </button>
+        </div>
+
+        <div className="mt-7">
+          <SectionHeader eyebrow="Mijozlar fikri" title="Sharhlar" inline />
+          {reviews.length > 0 ? (
+            <div className="mt-3 space-y-3">
+              {reviews.slice(0, 4).map((review) => (
+                <div key={review.id} className="rounded-2xl bg-paper p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">{review.customerName}</p>
+                      <p className="text-[11px] text-muted-foreground">{formatDate(review.createdAt)}</p>
+                    </div>
+                    <div className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-[11px] font-semibold text-primary">
+                      <Star className="w-3.5 h-3.5 fill-current" strokeWidth={2.2} />
+                      {review.rating}
+                    </div>
+                  </div>
+                  {review.comment && (
+                    <p className="mt-2 text-sm leading-relaxed text-foreground/85">{review.comment}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3 rounded-2xl bg-paper p-4 text-sm text-muted-foreground flex items-center gap-3">
+              <MessageSquareQuote className="w-4 h-4 text-primary shrink-0" strokeWidth={2.4} />
+              Sharhlar buyurtma yakunlangach paydo bo'ladi.
+            </div>
+          )}
         </div>
 
         {related.length > 0 && (
@@ -237,6 +298,8 @@ export function ProductDetailScreen() {
             </div>
           </div>
         )}
+
+        <div className="h-6" />
       </div>
     </div>
   );

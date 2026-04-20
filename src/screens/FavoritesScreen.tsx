@@ -1,5 +1,4 @@
 import { useApp } from "@/store/useApp";
-import { PRODUCTS } from "@/data/products";
 import { ProductCard } from "@/components/app/ProductCard";
 import { EmptyState } from "@/components/app/EmptyState";
 import { Heart } from "lucide-react";
@@ -7,7 +6,8 @@ import { Heart } from "lucide-react";
 export function FavoritesScreen() {
   const favorites = useApp((s) => s.favorites);
   const navigate = useApp((s) => s.navigate);
-  const favProducts = PRODUCTS.filter((p) => favorites.includes(p.id));
+  const products = useApp((s) => s.products);
+  const favProducts = products.filter((p) => favorites.includes(p.id));
 
   return (
     <div className="animate-screen-in px-5 pt-3 pb-4">

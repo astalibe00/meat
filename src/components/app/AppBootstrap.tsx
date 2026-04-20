@@ -1,23 +1,14 @@
 import { useEffect } from "react";
-import { DEFAULT_PROFILE_NAME, useApp } from "@/store/useApp";
-import { getTelegramUserName, initTelegramWebApp } from "@/lib/telegram-webapp";
+import { initTelegramWebApp } from "@/lib/telegram-webapp";
+import { useApp } from "@/store/useApp";
 
 export function AppBootstrap() {
-  const checkoutName = useApp((state) => state.checkout.name);
-  const updateCheckout = useApp((state) => state.updateCheckout);
+  const bootstrapFromTelegram = useApp((state) => state.bootstrapFromTelegram);
 
   useEffect(() => {
     const webApp = initTelegramWebApp();
-    const telegramName = getTelegramUserName(webApp?.initDataUnsafe?.user);
-
-    if (!telegramName) {
-      return;
-    }
-
-    if (!checkoutName.trim() || checkoutName === DEFAULT_PROFILE_NAME) {
-      updateCheckout({ name: telegramName });
-    }
-  }, [checkoutName, updateCheckout]);
+    void bootstrapFromTelegram(webApp?.initDataUnsafe?.user);
+  }, [bootstrapFromTelegram]);
 
   return null;
 }

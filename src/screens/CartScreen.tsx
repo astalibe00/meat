@@ -1,14 +1,14 @@
-import { useMemo, useState } from "react";
-import { ShieldCheck, ShoppingBag, Tag as TagIcon, Trash2 } from "lucide-react";
+import { useMemo } from "react";
+import { ShieldCheck, ShoppingBag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/app/EmptyState";
 import { FreeShipBar } from "@/components/app/FreeShipBar";
 import { ProductCard } from "@/components/app/ProductCard";
 import { QtyStepper } from "@/components/app/QtyStepper";
 import { SectionHeader } from "@/components/app/SectionHeader";
-import { getCartUpsells } from "@/data/products";
 import { formatCurrency } from "@/lib/format";
-import { PROMO_OFFERS, getLineId } from "@/lib/commerce";
+import { getLineId } from "@/lib/commerce";
+import { getProductMaxUnits } from "@/lib/weights";
 import { useApp } from "@/store/useApp";
 
 export function CartScreen() {
@@ -17,14 +17,14 @@ export function CartScreen() {
   const removeFromCart = useApp((state) => state.removeFromCart);
   const navigate = useApp((state) => state.navigate);
   const getCartPricing = useApp((state) => state.cartPricing);
-  const promoCode = useApp((state) => state.promoCode);
-  const applyPromoCode = useApp((state) => state.applyPromoCode);
-  const clearPromoCode = useApp((state) => state.clearPromoCode);
-  const [promoInput, setPromoInput] = useState(promoCode);
+  const products = useApp((state) => state.products);
   const pricing = getCartPricing();
 
   const isEmpty = cart.length === 0;
-  const upsells = useMemo(() => getCartUpsells(cart.map((line) => line.product.id), 6), [cart]);
+  const upsells = useMemo(() => {
+    const inCart = new Set(cart.map((line) => line.product.id));
+    return products.filter((product) => product.enabled && !inCart.has(product.id)).slice(0, 6);
+  }, [cart, products]);
 
   if (isEmpty) {
     return (
@@ -66,16 +66,6 @@ export function CartScreen() {
     );
   }
 
-  const handlePromoApply = (code = promoInput) => {
-    const result = applyPromoCode(code);
-    if (result.ok) {
-      setPromoInput(result.code);
-      toast.success(result.message);
-    } else {
-      toast.error(result.message);
-    }
-  };
-
   return (
     <div className="animate-screen-in pb-28">
       <div className="px-5 pt-3 pb-2 flex items-end justify-between">
@@ -103,6 +93,10 @@ export function CartScreen() {
           const oldLineTotal = line.product.oldPrice
             ? line.product.oldPrice * line.quantity
             : null;
+          const maxUnits = Math.max(
+            1,
+            getProductMaxUnits(line.product.stockKg, line.weightOption, line.product.weight),
+          );
 
           return (
             <div key={lineId} className="bg-surface rounded-2xl p-3 shadow-card flex gap-3">
@@ -153,7 +147,7 @@ export function CartScreen() {
                     value={line.quantity}
                     onChange={(value) => updateQty(lineId, value)}
                     min={0}
-                    max={20}
+                    max={maxUnits}
                     size="sm"
                   />
                 </div>
@@ -179,46 +173,6 @@ export function CartScreen() {
         </div>
       )}
 
-      <div className="mx-5 mt-5 bg-surface rounded-2xl p-3 shadow-xs border border-dashed border-border">
-        <div className="flex items-center gap-2">
-          <TagIcon className="w-4 h-4 text-primary shrink-0" strokeWidth={2.5} />
-          <input
-            value={promoInput}
-            onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
-            placeholder="Promo kod"
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          />
-          <button
-            onClick={() => handlePromoApply()}
-            className="tap text-xs font-bold text-primary px-2 active:scale-95 transition-transform"
-          >
-            Qo'llash
-          </button>
-        </div>
-        <div className="flex flex-wrap gap-2 mt-3">
-          {PROMO_OFFERS.map((offer) => (
-            <button
-              key={offer.code}
-              onClick={() => handlePromoApply(offer.code)}
-              className="tap h-8 px-3 rounded-full bg-paper text-[11px] font-semibold border border-border active:scale-95 transition-transform"
-            >
-              {offer.code}
-            </button>
-          ))}
-          {promoCode && (
-            <button
-              onClick={() => {
-                clearPromoCode();
-                setPromoInput("");
-              }}
-              className="tap h-8 px-3 rounded-full bg-primary-soft text-[11px] font-semibold text-primary active:scale-95 transition-transform"
-            >
-              Promo kodni tozalash
-            </button>
-          )}
-        </div>
-      </div>
-
       <div className="mx-5 mt-3 bg-surface rounded-2xl p-4 shadow-card space-y-2.5">
         <Row label="Oraliq summa" value={formatCurrency(pricing.subtotal)} />
         {pricing.savings > 0 && (
@@ -241,7 +195,7 @@ export function CartScreen() {
 
         <div className="flex items-center gap-1.5 pt-2 text-[11px] text-muted-foreground">
           <ShieldCheck className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-          Xavfsiz rasmiylashtirish, halol kafolat va tezkor yordam
+          Promo kodlar checkout oqimida yashirin qo'llanadi, savatda ko'rinmaydi
         </div>
       </div>
 

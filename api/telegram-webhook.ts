@@ -14,8 +14,12 @@ import {
   getWebhookSecret,
   mainInlineKeyboard,
   mainReplyKeyboard,
+  orderActionKeyboard,
   sendMessage,
 } from "./_lib/telegram.js";
+import { mutateAppData, replaceOrder, upsertCustomer } from "./_lib/app-data.js";
+import { ORDER_STATUS_LABELS } from "../src/lib/order-status.js";
+import type { CustomerOrder, OrderStatus } from "../src/types/app-data.js";
 
 interface ApiRequest {
   method?: string;
@@ -31,13 +35,16 @@ interface ApiResponse {
 
 interface TelegramMessage {
   text?: string;
+  contact?: { phone_number?: string };
+  from?: { id?: number; username?: string; first_name?: string; last_name?: string };
   chat?: { id?: number | string };
 }
 
 interface TelegramCallbackQuery {
   id: string;
   data?: string;
-  message?: TelegramMessage;
+  from?: { id?: number; username?: string; first_name?: string; last_name?: string };
+  message?: { chat?: { id?: number | string } };
 }
 
 interface TelegramUpdate {
@@ -80,35 +87,31 @@ async function routeText(chatId: number | string, text: string) {
     return sendWelcome(chatId);
   }
 
-  if (
-    normalized === "/shop" ||
-    normalized === "shop" ||
-    normalized === "katalog"
-  ) {
+  if (normalized === "telefonni ulashish") {
+    return sendMessage(
+      chatId,
+      "Pastdagi tugma orqali telefon raqamingizni ulashing. Mini App checkout shu ma'lumotni avtomatik ishlatadi.",
+      { reply_markup: mainReplyKeyboard() },
+    );
+  }
+
+  if (normalized === "/shop" || normalized === "shop" || normalized === "katalog") {
     return sendShop(chatId);
   }
 
-  if (
-    normalized === "/deals" ||
-    normalized === "deals" ||
-    normalized === "aksiyalar"
-  ) {
+  if (normalized === "/deals" || normalized === "deals" || normalized === "aksiyalar") {
     return sendMessage(chatId, buildDealsMessage(), {
       reply_markup: mainInlineKeyboard(),
     });
   }
 
-  if (
-    normalized === "/delivery" ||
-    normalized === "delivery" ||
-    normalized === "yetkazib berish"
-  ) {
+  if (normalized === "/delivery" || normalized === "delivery" || normalized === "yetkazib berish") {
     return sendMessage(chatId, buildDeliveryMessage(), {
       reply_markup: mainInlineKeyboard(),
     });
   }
 
-  if (normalized === "/support" || normalized === "support") {
+  if (normalized === "/support" || normalized === "support" || normalized === "yordam") {
     return sendMessage(chatId, buildSupportMessage(), {
       reply_markup: mainInlineKeyboard(),
     });
@@ -132,9 +135,7 @@ async function routeText(chatId: number | string, text: string) {
   }
 
   const category = BOT_CATEGORIES.find(
-    (item) =>
-      item.title.toLowerCase() === normalized ||
-      item.id.toLowerCase() === normalized,
+    (item) => item.title.toLowerCase() === normalized || item.id.toLowerCase() === normalized,
   );
   if (category) {
     return sendMessage(chatId, buildCategoryMessage(category.id), {
@@ -144,11 +145,128 @@ async function routeText(chatId: number | string, text: string) {
 
   return sendMessage(
     chatId,
-    "Katalog, Aksiyalar, Yetkazib berish, Support yoki Mini App tugmalaridan foydalaning.",
+    "Mini App, Katalog, Aksiyalar, Yetkazib berish, Yordam yoki Telefonni ulashish tugmalaridan foydalaning.",
     {
       reply_markup: mainReplyKeyboard(),
     },
   );
+}
+
+async function handleContact(update: TelegramUpdate) {
+  const message = update.message;
+  const chatId = message?.chat?.id;
+  const telegramUserId = message?.from?.id;
+  const phone = message?.contact?.phone_number?.trim();
+
+  if (!chatId || !telegramUserId || !phone) {
+    return;
+  }
+
+  await mutateAppData((state) => ({
+    ...state,
+    customers: upsertCustomer(state.customers, {
+      telegramUserId,
+      name:
+        [message?.from?.first_name, message?.from?.last_name].filter(Boolean).join(" ").trim() ||
+        "Telegram mijoz",
+      username: message?.from?.username,
+      phone,
+      address: state.customers.find((item) => item.telegramUserId === telegramUserId)?.address,
+      addressLabel:
+        state.customers.find((item) => item.telegramUserId === telegramUserId)?.addressLabel,
+      coordinates:
+        state.customers.find((item) => item.telegramUserId === telegramUserId)?.coordinates,
+      preferredFulfillment:
+        state.customers.find((item) => item.telegramUserId === telegramUserId)
+          ?.preferredFulfillment ?? "delivery",
+      pickupPointId:
+        state.customers.find((item) => item.telegramUserId === telegramUserId)?.pickupPointId,
+    }),
+  }));
+
+  await sendMessage(
+    chatId,
+    "Telefon raqamingiz saqlandi. Endi Mini App checkout ism va telefonni avtomatik oladi.",
+    { reply_markup: mainInlineKeyboard() },
+  );
+}
+
+function nextOrderEvent(order: CustomerOrder, status: OrderStatus) {
+  const labels: Record<OrderStatus, string> = {
+    pending: "Buyurtma admin tasdig'iga qaytdi.",
+    confirmed: "Buyurtma admin tomonidan tasdiqlandi.",
+    preparing: "Mahsulot tayyorlash boshlandi.",
+    ready: order.customer.fulfillmentType === "pickup" ? "Buyurtma pickup uchun tayyor." : "Buyurtma jo'natishga tayyor.",
+    delivering: order.customer.fulfillmentType === "pickup" ? "Buyurtma pickup punktida kutmoqda." : "Buyurtma yetkazib berilmoqda.",
+    completed: "Buyurtma muvaffaqiyatli yakunlandi.",
+    cancelled: "Buyurtma bekor qilindi.",
+  };
+
+  return {
+    id: `status-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    status,
+    label: labels[status],
+    createdAt: new Date().toISOString(),
+    source: "bot" as const,
+  };
+}
+
+async function handleOrderCallback(update: TelegramUpdate, orderId: string, status: OrderStatus) {
+  const callbackQuery = update.callback_query!;
+  const chatId = callbackQuery.message?.chat?.id;
+  const actor = callbackQuery.from;
+
+  const nextState = await mutateAppData((state) => {
+    const order = state.orders.find((item) => item.id === orderId);
+    if (!order) {
+      throw new Error("Buyurtma topilmadi.");
+    }
+
+    const updatedOrder: CustomerOrder = {
+      ...order,
+      status,
+      paymentStatus:
+        status === "completed"
+          ? "paid"
+          : status === "cancelled"
+            ? order.paymentMethod === "cash" || order.paymentMethod === "paynet"
+              ? "cancelled"
+              : "refund-pending"
+            : order.paymentStatus,
+      updatedAt: new Date().toISOString(),
+      statusHistory: [...order.statusHistory, nextOrderEvent(order, status)],
+    };
+
+    return {
+      ...state,
+      orders: replaceOrder(state.orders, updatedOrder),
+    };
+  });
+
+  const order = nextState.orders.find((item) => item.id === orderId);
+  if (!order) {
+    throw new Error("Buyurtma topilmadi.");
+  }
+
+  await answerCallbackQuery(callbackQuery.id, ORDER_STATUS_LABELS[status]);
+
+  if (chatId) {
+    await sendMessage(
+      chatId,
+      `Admin yangiladi: ${order.id}\nHolat: ${ORDER_STATUS_LABELS[status]}\nOperator: ${actor?.username ? `@${actor.username}` : actor?.first_name ?? "admin"}`,
+      {
+        reply_markup: orderActionKeyboard(order.id),
+      },
+    );
+  }
+
+  if (order.customer.telegramUserId) {
+    await sendMessage(
+      order.customer.telegramUserId,
+      `Buyurtma holati yangilandi: ${ORDER_STATUS_LABELS[status]}\nBuyurtma: ${order.id}`,
+      { reply_markup: mainInlineKeyboard() },
+    );
+  }
 }
 
 async function routeCallback(update: TelegramUpdate) {
@@ -157,6 +275,12 @@ async function routeCallback(update: TelegramUpdate) {
   const data = callbackQuery?.data ?? "";
 
   if (!chatId) {
+    return;
+  }
+
+  if (data.startsWith("order:")) {
+    const [, orderId, status] = data.split(":");
+    await handleOrderCallback(update, orderId, status as OrderStatus);
     return;
   }
 
@@ -236,6 +360,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const chatId = getChatId(update);
 
   try {
+    if (update?.message?.contact?.phone_number) {
+      await handleContact(update);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
     if (update?.callback_query) {
       await routeCallback(update);
       res.status(200).json({ ok: true });
