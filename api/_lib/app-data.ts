@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import { PRODUCTS, type Product } from "../../src/data/products.js";
 import type {
   AppDataState,
   CustomerOrder,
@@ -11,6 +10,181 @@ import type {
 
 const BUCKET_ID = "meat-app-data";
 const STATE_OBJECT = "state/app-data.json";
+
+interface SeedProduct {
+  id: string;
+  name: string;
+  price: number;
+  oldPrice?: number;
+  weight: string;
+  category: ManagedProduct["category"];
+  image: string;
+  tags: ManagedProduct["tags"];
+  description: string;
+  weightOptions?: string[];
+  origin?: string;
+  prepTime?: string;
+}
+
+const DEFAULT_PRODUCTS: SeedProduct[] = [
+  {
+    id: "ground-beef",
+    name: "Qiyma mol go'shti",
+    price: 110000,
+    weight: "0.5 kg",
+    category: "beef",
+    image: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=900&q=80",
+    tags: ["Popular", "Fresh"],
+    description: "100% halol mol go'shti qiyma qilinib tayyorlangan.",
+    weightOptions: ["0.5 kg", "1 kg", "2 kg"],
+    origin: "AQSH, yaylovda boqilgan",
+    prepTime: "15 daqiqa",
+  },
+  {
+    id: "beef-chuck",
+    name: "Mol go'shti dimlamalik bo'lagi",
+    price: 195000,
+    oldPrice: 245000,
+    weight: "1 kg",
+    category: "beef",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+    tags: ["Sale", "Best Value"],
+    description: "Dimlama va qozon taomlari uchun mos yumshoq bo'lak.",
+    weightOptions: ["1 kg", "1.5 kg"],
+    origin: "AQSH, o't bilan boqilgan",
+    prepTime: "3 soat",
+  },
+  {
+    id: "beef-ribeye",
+    name: "Mol ribay steyki",
+    price: 232000,
+    weight: "0.3 kg",
+    category: "beef",
+    image: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=900&q=80",
+    tags: ["Premium", "Popular"],
+    description: "Uy sharoitida premium steyk tayyorlash uchun qo'lda kesilgan bo'lak.",
+    weightOptions: ["0.3 kg", "0.45 kg"],
+    origin: "AQSH, prime sifat",
+    prepTime: "10 daqiqa",
+  },
+  {
+    id: "lamb-leg",
+    name: "Butun qo'y soni",
+    price: 427000,
+    oldPrice: 525000,
+    weight: "2 kg",
+    category: "lamb",
+    image: "https://images.unsplash.com/photo-1514516345957-556ca7c90a33?auto=format&fit=crop&w=900&q=80",
+    tags: ["Sale", "Premium", "Traditional"],
+    description: "Bayramlar va katta dasturxon uchun butun qo'y soni.",
+    weightOptions: ["2 kg", "2.5 kg"],
+    origin: "Yangi Zelandiya yaylovi",
+    prepTime: "2 soat",
+  },
+  {
+    id: "lamb-chops",
+    name: "Qo'y kotleti",
+    price: 305000,
+    weight: "0.6 kg",
+    category: "lamb",
+    image: "https://images.unsplash.com/photo-1529692236671-f1dc31f2d302?auto=format&fit=crop&w=900&q=80",
+    tags: ["Premium", "Popular"],
+    description: "Tovada yoki grilda tez pishadigan yumshoq qo'y kotletlari.",
+    weightOptions: ["0.6 kg", "1.2 kg"],
+    origin: "Yangi Zelandiya yaylovi",
+    prepTime: "8 daqiqa",
+  },
+  {
+    id: "ground-lamb",
+    name: "Qiyma qo'y go'shti",
+    price: 158000,
+    weight: "0.5 kg",
+    category: "lamb",
+    image: "https://images.unsplash.com/photo-1603048297172-c92544798d5a?auto=format&fit=crop&w=900&q=80",
+    tags: ["Fresh"],
+    description: "Kabob va milliy taomlar uchun yangi qiyma.",
+    weightOptions: ["0.5 kg", "1 kg"],
+    origin: "Yaylovda boqilgan",
+    prepTime: "15 daqiqa",
+  },
+  {
+    id: "whole-chicken",
+    name: "Butun tovuq",
+    price: 158000,
+    weight: "2 kg",
+    category: "chicken",
+    image: "https://images.unsplash.com/photo-1603048719539-9ecb4c0b18f0?auto=format&fit=crop&w=900&q=80",
+    tags: ["Popular", "Fresh", "Best Value"],
+    description: "Pechda yoki bo'laklab tayyorlash uchun butun halol tovuq.",
+    weightOptions: ["1.5 kg", "2 kg"],
+    origin: "AQSH, erkin boqilgan",
+    prepTime: "1.5 soat",
+  },
+  {
+    id: "chicken-wings",
+    name: "Tovuq qanotlari",
+    price: 122000,
+    oldPrice: 158000,
+    weight: "1.4 kg",
+    category: "chicken",
+    image: "https://images.unsplash.com/photo-1562967916-eb82221dfb92?auto=format&fit=crop&w=900&q=80",
+    tags: ["Sale", "Popular"],
+    description: "Mehmonlar va oilaviy yig'ilish uchun qulay qanotlar.",
+    origin: "AQSH, erkin boqilgan",
+    prepTime: "40 daqiqa",
+  },
+  {
+    id: "goat-shoulder",
+    name: "Echki yelkasi",
+    price: 280000,
+    weight: "1.5 kg",
+    category: "goat",
+    image: "https://images.unsplash.com/photo-1518492104633-130d0cc84637?auto=format&fit=crop&w=900&q=80",
+    tags: ["Traditional", "Premium"],
+    description: "Biryani va curry uchun tayyor yumshoq echki yelkasi.",
+    weightOptions: ["1.5 kg", "2 kg"],
+    origin: "Yaylovda boqilgan",
+    prepTime: "3 soat",
+  },
+  {
+    id: "goat-curry",
+    name: "Echki curry bo'laklari",
+    price: 220000,
+    weight: "0.9 kg",
+    category: "goat",
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+    tags: ["Traditional", "Popular"],
+    description: "Curry va dimlama uchun toza, suyakka ajratilgan bo'laklar.",
+    origin: "Yaylovda boqilgan",
+    prepTime: "2 soat",
+  },
+  {
+    id: "wild-salmon",
+    name: "Yovvoyi losos",
+    price: 183000,
+    weight: "0.5 kg",
+    category: "seafood",
+    image: "https://images.unsplash.com/photo-1544943910-4c1dc44aab44?auto=format&fit=crop&w=900&q=80",
+    tags: ["Wild Caught", "Premium", "Fresh"],
+    description: "Omega-3 ga boy, tayyorlashga qulay losos filesi.",
+    weightOptions: ["0.5 kg", "1 kg"],
+    origin: "Alyaska, yovvoyi ov",
+    prepTime: "12 daqiqa",
+  },
+  {
+    id: "family-box",
+    name: "Oilaviy halol to'plam",
+    price: 793000,
+    oldPrice: 1037000,
+    weight: "4.5 kg",
+    category: "bundles",
+    image: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=900&q=80",
+    tags: ["Sale", "Best Deal", "Best Value"],
+    description: "Bir haftalik oilaviy xarid uchun tayyor to'plam.",
+    origin: "Aralash tanlov",
+    prepTime: "Turlicha",
+  },
+];
 
 const DEFAULT_PICKUP_POINTS: PickupPoint[] = [
   {
@@ -60,7 +234,7 @@ function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function withDefaults(product: Product): ManagedProduct {
+function withDefaults(product: SeedProduct): ManagedProduct {
   return {
     ...product,
     stockKg: product.weightOptions?.length ? 24 : 12,
@@ -73,7 +247,7 @@ function withDefaults(product: Product): ManagedProduct {
 
 export function getDefaultAppData(): AppDataState {
   return {
-    products: PRODUCTS.map(withDefaults),
+    products: DEFAULT_PRODUCTS.map(withDefaults),
     pickupPoints: DEFAULT_PICKUP_POINTS,
     customers: [],
     orders: [],
