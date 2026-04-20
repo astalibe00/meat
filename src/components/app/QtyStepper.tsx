@@ -25,7 +25,7 @@ export function QtyStepper({ value, onChange, min = 0, max = 99, size = "md", cl
       <button
         onClick={(e) => { e.stopPropagation(); dec(); }}
         disabled={value <= min}
-        aria-label="Decrease"
+        aria-label="Kamaytirish"
         className={cn(
           "tap rounded-full bg-surface grid place-items-center shadow-xs active:scale-90 transition-transform disabled:opacity-40",
           s.btn
@@ -37,7 +37,7 @@ export function QtyStepper({ value, onChange, min = 0, max = 99, size = "md", cl
       <button
         onClick={(e) => { e.stopPropagation(); inc(); }}
         disabled={value >= max}
-        aria-label="Increase"
+        aria-label="Ko'paytirish"
         className={cn(
           "tap rounded-full bg-primary text-primary-foreground grid place-items-center shadow-xs active:scale-90 transition-transform disabled:opacity-40",
           s.btn

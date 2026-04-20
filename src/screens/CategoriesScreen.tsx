@@ -7,11 +7,11 @@ import { CATEGORIES, PRODUCTS, type CategoryId } from "@/data/products";
 import { useApp, type CatalogSort } from "@/store/useApp";
 
 const SORTS: { id: CatalogSort; label: string }[] = [
-  { id: "popular", label: "Popular" },
-  { id: "price-asc", label: "Price low" },
-  { id: "price-desc", label: "Price high" },
-  { id: "freshest", label: "Freshest" },
-  { id: "value", label: "Best value" },
+  { id: "popular", label: "Mashhur" },
+  { id: "price-asc", label: "Arzon narx" },
+  { id: "price-desc", label: "Qimmat narx" },
+  { id: "freshest", label: "Eng yangi" },
+  { id: "value", label: "Qulay narx" },
 ];
 
 export function CategoriesScreen() {
@@ -72,12 +72,12 @@ export function CategoriesScreen() {
   return (
     <div className="animate-screen-in pb-4">
       <div className="px-5 pt-3 pb-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Browse</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Katalog</p>
         <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight mt-0.5">
-          {activeCategory ? activeCategory.name : "Shop everything"}
+          {activeCategory ? activeCategory.name : "Barcha mahsulotlar"}
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          {activeCategory ? activeCategory.tagline : "Premium halal essentials, ready to order."}
+          {activeCategory ? activeCategory.tagline : "Halol mahsulotlar, buyurtmaga tayyor."}
         </p>
       </div>
 
@@ -88,7 +88,7 @@ export function CategoriesScreen() {
             onClick={() => setActive("all")}
             count={PRODUCTS.length}
           >
-            All
+            Barchasi
           </FilterChip>
           {CATEGORIES.map((category) => {
             const count = PRODUCTS.filter((product) => product.category === category.id).length;
@@ -111,7 +111,7 @@ export function CategoriesScreen() {
         <div className="flex gap-2 px-5 pb-3 items-center">
           <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground pr-1">
             <SlidersHorizontal className="w-3 h-3" strokeWidth={2.5} />
-            Sort
+            Saralash
           </span>
           {SORTS.map((option) => (
             <FilterChip
@@ -124,7 +124,7 @@ export function CategoriesScreen() {
           ))}
           <span className="w-px h-4 bg-border mx-1 shrink-0" />
           <FilterChip active={onlySale} onClick={() => setOnlySale((value) => !value)}>
-            Sale only
+            Faqat aksiya
           </FilterChip>
         </div>
       </div>
@@ -133,15 +133,15 @@ export function CategoriesScreen() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-muted-foreground">
             <span className="font-bold tabular-nums text-foreground">{products.length}</span>{" "}
-            {products.length === 1 ? "product" : "products"}
+            {products.length === 1 ? "mahsulot" : "mahsulot"}
           </p>
         </div>
 
         {products.length === 0 ? (
           <EmptyState
             icon={<PackageSearch className="w-9 h-9" strokeWidth={1.75} />}
-            title="No products match"
-            body="Try clearing filters or pick a different category."
+            title="Mos mahsulot topilmadi"
+            body="Filtrlarni tozalang yoki boshqa kategoriya tanlang."
             action={
               <button
                 onClick={() => {
@@ -151,7 +151,7 @@ export function CategoriesScreen() {
                 }}
                 className="tap h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform"
               >
-                Reset filters
+                Filtrlarni tozalash
               </button>
             }
           />

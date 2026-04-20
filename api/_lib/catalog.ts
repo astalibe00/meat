@@ -11,9 +11,9 @@ export const BOT_CATEGORIES: BotCategory[] = [
     title: "Mol go'shti",
     lead: "Steyk, qiyma va sekin pishadigan bo'laklar.",
     items: [
-      "Ground Beef - 110 000 UZS / 0.5 kg",
-      "Beef Chuck Roast - 195 000 UZS / 0.9-1.4 kg",
-      "Beef Ribeye Steak - 232 000 UZS / 0.3 kg",
+      "Qiyma mol go'shti - 110 000 UZS / 0.5 kg",
+      "Mol go'shti dimlamalik bo'lagi - 195 000 UZS / 0.9-1.4 kg",
+      "Mol ribay steyki - 232 000 UZS / 0.3 kg",
     ],
   },
   {
@@ -21,9 +21,9 @@ export const BOT_CATEGORIES: BotCategory[] = [
     title: "Qo'y go'shti",
     lead: "Grill va oilaviy dasturxon uchun yumshoq bo'laklar.",
     items: [
-      "Whole Leg of Lamb - 427 000 UZS / 1.8-2.3 kg",
-      "Lamb Chops - 305 000 UZS / 0.6 kg",
-      "Ground Lamb - 158 000 UZS / 0.5 kg",
+      "Butun qo'y soni - 427 000 UZS / 1.8-2.3 kg",
+      "Qo'y kotleti - 305 000 UZS / 0.6 kg",
+      "Qiyma qo'y go'shti - 158 000 UZS / 0.5 kg",
     ],
   },
   {
@@ -31,9 +31,9 @@ export const BOT_CATEGORIES: BotCategory[] = [
     title: "Tovuq",
     lead: "Har kuni yangi tovuq mahsulotlari va oilaviy hajm.",
     items: [
-      "Whole Chicken - 158 000 UZS / 1.8-2.3 kg",
-      "Chicken Thighs - 128 000 UZS / 1.8 kg",
-      "Chicken Wings - 122 000 UZS / 1.4 kg",
+      "Butun tovuq - 158 000 UZS / 1.8-2.3 kg",
+      "Tovuq sonlari - 128 000 UZS / 1.8 kg",
+      "Tovuq qanotlari - 122 000 UZS / 1.4 kg",
     ],
   },
   {
@@ -41,8 +41,8 @@ export const BOT_CATEGORIES: BotCategory[] = [
     title: "Echki go'shti",
     lead: "An'anaviy curry va dimlama uchun tanlovlar.",
     items: [
-      "Goat Shoulder - 280 000 UZS / 1.4-1.8 kg",
-      "Goat Curry Cut - 220 000 UZS / 0.9 kg",
+      "Echki yelkasi - 280 000 UZS / 1.4-1.8 kg",
+      "Echki go'shti curry bo'laklari - 220 000 UZS / 0.9 kg",
     ],
   },
 ];
@@ -63,7 +63,7 @@ export function buildCategoryMessage(id: string) {
     "",
     ...category.items.map((item, index) => `${index + 1}. ${item}`),
     "",
-    "To'liq katalog va checkout uchun Mini App tugmasini bosing.",
+    "To'liq katalog va rasmiylashtirish uchun Mini App tugmasini bosing.",
   ].join("\n");
 }
 
@@ -73,9 +73,9 @@ export function buildDealsMessage() {
     "",
     "1. SAVE10 - 700 000 UZS dan yuqori savatga 10% chegirma",
     "2. FREESHIP - istalgan savatga bepul yetkazib berish",
-    "3. Family Halal Box - haftalik to'plam uchun foydali narx",
+    "3. Oilaviy halol to'plam - haftalik xarid uchun foydali narx",
     "",
-    "Promo kodni checkoutdan oldin savatchada kiriting.",
+    "Promo kodni rasmiylashtirishdan oldin savatchada kiriting.",
   ].join("\n");
 }
 
@@ -84,22 +84,22 @@ export function buildDeliveryMessage() {
     "Yetkazib berish",
     "",
     "- 14:00 gacha berilgan buyurtmalar shu kuni jo'natiladi",
-    "- Kechki slotlar checkout ichida tanlanadi",
-    "- Status yangilanishlari sayt va botda ko'rinadi",
+    "- Kechki slotlar rasmiylashtirish oynasida tanlanadi",
+    "- Holat yangilanishlari sayt va botda ko'rinadi",
     "",
-    "Manzilni o'zgartirish kerak bo'lsa, Support bo'limidan yozing.",
+    "Manzilni o'zgartirish kerak bo'lsa, Yordam bo'limidan yozing.",
   ].join("\n");
 }
 
 export function buildSupportMessage() {
   return [
-    "Support",
+    "Yordam",
     "",
     "- Katalog orqali mahsulotlarni ko'ring",
     "- Yetkazib berish bo'limidan dispatch ma'lumotini oling",
-    "- Yordam so'rovida order ID ni yozib yuboring",
+    "- Yordam so'rovida buyurtma ID raqamini yozib yuboring",
     "",
-    "Eng tez checkout uchun Mini App tugmasidan foydalaning.",
+    "Eng tez rasmiylashtirish uchun Mini App tugmasidan foydalaning.",
   ].join("\n");
 }
 
@@ -108,9 +108,9 @@ export function buildWelcomeMessage(webAppAvailable: boolean) {
     "Fresh Halal Direct",
     "",
     "Telegram ichida tez, minimal va qulay buyurtma oqimi.",
-    "Quyidagi menyudan katalog, aksiyalar, yetkazib berish yoki supportni tanlang.",
+    "Quyidagi menyudan katalog, aksiyalar, yetkazib berish yoki yordam bo'limini tanlang.",
     webAppAvailable
-      ? "Mini App eng tez checkout yo'lini ochadi."
+      ? "Mini App eng tez rasmiylashtirish yo'lini ochadi."
       : "Mini App tugmasi deploy URL sozlangach ishlaydi.",
   ].join("\n");
 }

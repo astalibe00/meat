@@ -42,7 +42,7 @@ export function ProductDetailScreen() {
 
   const handleAdd = () => {
     addToCart(product, quantity, weight);
-    toast.success(`Added ${quantity} x ${product.name}`, {
+    toast.success(`${quantity} x ${product.name} savatga qo'shildi`, {
       description: `${weight ?? product.weight} - ${formatCurrency(product.price * quantity)}`,
       duration: 1700,
     });
@@ -50,16 +50,18 @@ export function ProductDetailScreen() {
   };
 
   const handleShare = async () => {
-    const message = `${product.name} - ${formatCurrency(product.price)} at Fresh Halal Direct`;
+    const message = `${product.name} - ${formatCurrency(product.price)}. Fresh Halal katalogidan.`;
+
     try {
       if (navigator.share) {
         await navigator.share({ title: product.name, text: message });
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(message);
       }
-      toast.success("Product details copied");
+
+      toast.success("Mahsulot ma'lumoti nusxalandi");
     } catch {
-      toast.error("Share was cancelled");
+      toast.error("Ulashish bekor qilindi");
     }
   };
 
@@ -71,19 +73,20 @@ export function ProductDetailScreen() {
 
         <button
           onClick={back}
-          aria-label="Back"
+          aria-label="Orqaga"
           className="tap absolute left-3 w-10 h-10 rounded-full bg-surface/95 backdrop-blur grid place-items-center shadow-card active:scale-90 transition-transform"
           style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
         >
           <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
         </button>
+
         <div
           className="absolute right-3 flex flex-col gap-2"
           style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
         >
           <button
             onClick={() => toggleFavorite(product.id)}
-            aria-label="Save"
+            aria-label="Saqlash"
             className="tap w-10 h-10 rounded-full bg-surface/95 backdrop-blur grid place-items-center shadow-card active:scale-90 transition-transform"
           >
             <Heart
@@ -93,16 +96,17 @@ export function ProductDetailScreen() {
           </button>
           <button
             onClick={handleShare}
-            aria-label="Share"
+            aria-label="Ulashish"
             className="tap w-10 h-10 rounded-full bg-surface/95 backdrop-blur grid place-items-center shadow-card active:scale-90 transition-transform"
           >
             <Share2 className="w-4 h-4 text-foreground/70" strokeWidth={2.5} />
           </button>
         </div>
+
         {onSale && (
           <div className="absolute bottom-4 left-4">
             <ProductBadge
-              label={`Save ${formatCurrency(savings)}`}
+              label={`Tejash ${formatCurrency(savings)}`}
               variant="Sale"
               className="!h-7 !px-3 !text-xs"
             />
@@ -147,9 +151,9 @@ export function ProductDetailScreen() {
               <BadgeCheck className="w-5 h-5" strokeWidth={2.5} />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-bold">100% halal certified</p>
+              <p className="text-sm font-bold">100% halol sertifikatlangan</p>
               <p className="text-[11px] text-background/70 leading-tight mt-0.5">
-                Halal certified - hand-trimmed - packed for same-day delivery
+                Halol sertifikatli, qo'lda tayyorlangan va bir kunlik yetkazish uchun qadoqlangan
               </p>
             </div>
           </div>
@@ -159,7 +163,7 @@ export function ProductDetailScreen() {
           <div className="mt-5">
             <div className="flex items-center justify-between mb-2.5">
               <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                Choose weight
+                Vaznni tanlang
               </p>
               <p className="text-[11px] text-muted-foreground">{weight}</p>
             </div>
@@ -183,21 +187,21 @@ export function ProductDetailScreen() {
 
         <div className="mt-6">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">
-            About this cut
+            Mahsulot haqida
           </p>
           <p className="text-[14px] text-foreground/85 leading-relaxed">{product.description}</p>
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-2">
-          <TrustBullet Icon={Flame} label="Cut to order" sub={product.prepTime ?? "Fresh"} />
-          <TrustBullet Icon={Truck} label="Same-day" sub="Order by 2pm" />
-          <TrustBullet Icon={Shield} label="Quality" sub="Money-back promise" />
+          <TrustBullet Icon={Flame} label="Buyurtmaga tayyor" sub={product.prepTime ?? "Yangi"} />
+          <TrustBullet Icon={Truck} label="Bir kunlik" sub="14:00 gacha buyurtma" />
+          <TrustBullet Icon={Shield} label="Sifat" sub="Ishonchli kafolat" />
         </div>
 
         <div className="mt-6 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">
-              Quantity
+              Miqdor
             </p>
             <p className="text-xs text-muted-foreground">
               {quantity} x {formatCurrency(product.price)}
@@ -215,7 +219,7 @@ export function ProductDetailScreen() {
               <span className="w-7 h-7 rounded-full bg-primary-foreground/15 grid place-items-center">
                 <Plus className="w-4 h-4" strokeWidth={3} />
               </span>
-              Add to cart
+              Savatga qo'shish
             </span>
             <span className="tabular-nums">{formatCurrency(product.price * quantity)}</span>
           </button>
@@ -223,7 +227,7 @@ export function ProductDetailScreen() {
 
         {related.length > 0 && (
           <div className="mt-7 -mx-5">
-            <SectionHeader eyebrow="You might also like" title="Pair it with" />
+            <SectionHeader eyebrow="Sizga yoqishi mumkin" title="Birga oling" />
             <div className="overflow-x-auto no-scrollbar">
               <div className="flex gap-3 px-5 pb-1">
                 {related.map((item) => (

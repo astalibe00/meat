@@ -5,11 +5,11 @@ import { getTelegramUser } from "@/lib/telegram-webapp";
 import { useApp } from "@/store/useApp";
 
 const SUPPORT_TOPICS = [
-  "Address change",
-  "Delivery timing",
-  "Order contents",
-  "Payment question",
-  "Other",
+  "Manzilni o'zgartirish",
+  "Yetkazish vaqti",
+  "Buyurtma tarkibi",
+  "To'lov savoli",
+  "Boshqa",
 ];
 
 export function SupportScreen() {
@@ -27,7 +27,7 @@ export function SupportScreen() {
     }
 
     if (!message.trim()) {
-      toast.error("Write a short message for support.");
+      toast.error("Yordam uchun qisqa xabar yozing.");
       return;
     }
 
@@ -55,16 +55,17 @@ export function SupportScreen() {
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Support request failed");
+        throw new Error(payload?.error ?? "Yordam so'rovi yuborilmadi");
       }
 
       setMessage("");
-      toast.success("Support request sent.", {
-        description: "We will reply in the Telegram bot first.",
+      toast.success("Yordam so'rovi yuborildi.", {
+        description: "Javob birinchi navbatda Telegram botga qaytadi.",
       });
     } catch (error) {
-      toast.error("Support request was not sent.", {
-        description: error instanceof Error ? error.message : "Try again in a moment.",
+      toast.error("Yordam so'rovi yuborilmadi.", {
+        description:
+          error instanceof Error ? error.message : "Birozdan keyin qayta urinib ko'ring.",
       });
     } finally {
       setIsSending(false);
@@ -73,34 +74,34 @@ export function SupportScreen() {
 
   return (
     <div className="animate-screen-in px-5 pt-3 pb-6">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Support</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Yordam</p>
       <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight mt-0.5">
-        Help and support
+        Yordam bo'limi
       </h1>
       <p className="text-sm text-muted-foreground mt-1">
-        Send a message to the team, jump back into checkout, or manage your latest order.
+        Jamoaga xabar yuboring, rasmiylashtirishga qayting yoki oxirgi buyurtmangizni oching.
       </p>
 
       <div className="mt-5 grid gap-3">
         <QuickAction
           icon={<MapPin className="w-5 h-5" strokeWidth={2.25} />}
-          title="Change address"
-          body="Open checkout and switch to another saved address."
-          actionLabel="Open checkout"
+          title="Manzilni o'zgartirish"
+          body="Rasmiylashtirishni ochib, boshqa saqlangan manzilni tanlang."
+          actionLabel="Rasmiylashtirishni ochish"
           onClick={() => navigate({ name: "checkout" })}
         />
         <QuickAction
           icon={<PackageSearch className="w-5 h-5" strokeWidth={2.25} />}
-          title="Check latest order"
-          body={latestOrder ? `Latest order: ${latestOrder.id}` : "No order placed yet."}
-          actionLabel="Open orders"
+          title="Oxirgi buyurtma"
+          body={latestOrder ? `Oxirgi buyurtma: ${latestOrder.id}` : "Hali buyurtma yo'q."}
+          actionLabel="Buyurtmalarni ochish"
           onClick={() => navigate({ name: "orders" })}
         />
         <QuickAction
           icon={<Bot className="w-5 h-5" strokeWidth={2.25} />}
-          title="Back to catalog"
-          body="Continue shopping from the Mini App without leaving Telegram."
-          actionLabel="Open catalog"
+          title="Katalogga qaytish"
+          body="Telegramdan chiqmasdan Mini App ichida xaridni davom ettiring."
+          actionLabel="Katalogni ochish"
           onClick={() => navigate({ name: "categories" })}
         />
       </div>
@@ -108,10 +109,10 @@ export function SupportScreen() {
       <div className="mt-5 rounded-2xl bg-surface p-4 shadow-card">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <MessageCircle className="w-4 h-4 text-primary" strokeWidth={2.25} />
-          Send support request
+          Yordam so'rovi yuborish
         </div>
         <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-          Messages go to the support Telegram flow together with your latest order and address.
+          Xabar yordam Telegram oqimiga buyurtma va manzil bilan birga yuboriladi.
         </p>
 
         <div className="mt-4 space-y-3">
@@ -131,7 +132,7 @@ export function SupportScreen() {
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             className="w-full rounded-2xl bg-paper px-4 py-3 text-sm outline-none border border-border resize-none min-h-[110px]"
-            placeholder="Describe what is wrong: address update, courier instructions, wrong cut, delivery timing..."
+            placeholder="Muammoni yozing: manzil, kuryer uchun izoh, noto'g'ri mahsulot, yetkazish vaqti..."
           />
 
           <button
@@ -140,7 +141,7 @@ export function SupportScreen() {
             className="tap h-12 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-60 disabled:active:scale-100"
           >
             <Send className="w-4 h-4" strokeWidth={2.25} />
-            {isSending ? "Sending..." : "Send request"}
+            {isSending ? "Yuborilmoqda..." : "So'rov yuborish"}
           </button>
         </div>
       </div>
@@ -148,11 +149,11 @@ export function SupportScreen() {
       <div className="mt-5 rounded-2xl border border-border bg-paper p-4">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <CircleHelp className="w-4 h-4 text-primary" strokeWidth={2.25} />
-          Support notes
+          Muhim eslatma
         </div>
         <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-          If you already placed an order, include any door code or landmark in the note above.
-          Replies are mirrored through the Telegram bot workflow.
+          Agar buyurtma allaqachon berilgan bo'lsa, domofon kodi yoki mo'ljalni yozib yuboring.
+          Javoblar Telegram bot oqimi orqali qaytadi.
         </p>
       </div>
     </div>

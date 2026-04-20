@@ -67,7 +67,7 @@ export function validatePromoCode(code: string, subtotal: number): PromoResult {
   const normalized = normalizePromoCode(code);
 
   if (!normalized) {
-    return { ok: false, code: "", message: "Enter a promo code first." };
+    return { ok: false, code: "", message: "Avval promo kodni kiriting." };
   }
 
   if (normalized === "SAVE10") {
@@ -75,14 +75,14 @@ export function validatePromoCode(code: string, subtotal: number): PromoResult {
       return {
         ok: false,
         code: normalized,
-        message: `SAVE10 works on baskets above ${formatCurrency(SAVE10_THRESHOLD)}.`,
+        message: `SAVE10 ${formatCurrency(SAVE10_THRESHOLD)} dan yuqori savatlarda ishlaydi.`,
       };
     }
 
     return {
       ok: true,
       code: normalized,
-      message: "SAVE10 applied. You saved 10% on the basket.",
+      message: "SAVE10 qo'llandi. Savat bo'yicha 10% chegirma oldingiz.",
     };
   }
 
@@ -90,14 +90,14 @@ export function validatePromoCode(code: string, subtotal: number): PromoResult {
     return {
       ok: true,
       code: normalized,
-      message: "FREESHIP applied. Delivery is now free.",
+      message: "FREESHIP qo'llandi. Yetkazib berish endi bepul.",
     };
   }
 
   return {
     ok: false,
     code: normalized,
-    message: "That promo code is not available.",
+    message: "Bunday promo kod hozir mavjud emas.",
   };
 }
 

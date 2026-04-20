@@ -20,7 +20,7 @@ export function FreeShipBar({ subtotal, className, variant = "card" }: Props) {
         <div className="flex items-center gap-2 text-xs">
           <Truck className="w-3.5 h-3.5 text-primary shrink-0" strokeWidth={2.5} />
           <span className="font-semibold text-foreground/80">
-            {freeShip ? "Free delivery unlocked" : `${formatCurrency(remaining)} to free delivery`}
+            {freeShip ? "Bepul yetkazish ochildi" : `Bepul yetkazish uchun yana ${formatCurrency(remaining)}`}
           </span>
         </div>
         <div className="h-1.5 rounded-full bg-paper overflow-hidden">
@@ -41,9 +41,9 @@ export function FreeShipBar({ subtotal, className, variant = "card" }: Props) {
         </span>
         <p className="text-[13px] font-semibold text-primary-soft-foreground flex-1 leading-tight">
           {freeShip ? (
-            <>You unlocked <span className="font-bold">FREE</span> delivery</>
+            <><span className="font-bold">Bepul</span> yetkazish faol</>
           ) : (
-            <>Add <span className="font-bold tabular-nums">{formatCurrency(remaining)}</span> more for free delivery</>
+            <><span className="font-bold tabular-nums">{formatCurrency(remaining)}</span> qo'shsangiz bepul yetkaziladi</>
           )}
         </p>
       </div>

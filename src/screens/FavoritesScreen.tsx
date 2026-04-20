@@ -11,22 +11,22 @@ export function FavoritesScreen() {
 
   return (
     <div className="animate-screen-in px-5 pt-3 pb-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Saved</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Saqlanganlar</p>
       <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight mb-4">
-        Your favorites
+        Sevimli mahsulotlar
       </h1>
 
       {favProducts.length === 0 ? (
         <EmptyState
           icon={<Heart className="w-9 h-9" strokeWidth={1.75} />}
-          title="No favorites yet"
-          body="Tap the heart on any product to save it here for quick reordering."
+          title="Sevimlilar hozircha yo'q"
+          body="Har qanday mahsulotdagi yurak belgisini bossangiz, u shu yerga saqlanadi."
           action={
             <button
               onClick={() => navigate({ name: "categories" })}
               className="tap h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform"
             >
-              Browse products
+              Mahsulotlarni ko'rish
             </button>
           }
         />

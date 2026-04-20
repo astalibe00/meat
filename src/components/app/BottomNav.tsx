@@ -4,11 +4,11 @@ import { cn } from "@/lib/utils";
 import { useApp, type Screen } from "@/store/useApp";
 
 const tabs: { name: Screen["name"]; label: string; Icon: typeof Home }[] = [
-  { name: "home", label: "Home", Icon: Home },
-  { name: "categories", label: "Shop", Icon: LayoutGrid },
-  { name: "search", label: "Search", Icon: Search },
-  { name: "cart", label: "Cart", Icon: ShoppingBag },
-  { name: "profile", label: "Account", Icon: User },
+  { name: "home", label: "Bosh sahifa", Icon: Home },
+  { name: "categories", label: "Do'kon", Icon: LayoutGrid },
+  { name: "search", label: "Qidiruv", Icon: Search },
+  { name: "cart", label: "Savat", Icon: ShoppingBag },
+  { name: "profile", label: "Profil", Icon: User },
 ];
 
 export function BottomNav() {

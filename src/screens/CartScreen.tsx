@@ -16,11 +16,12 @@ export function CartScreen() {
   const updateQty = useApp((state) => state.updateQty);
   const removeFromCart = useApp((state) => state.removeFromCart);
   const navigate = useApp((state) => state.navigate);
-  const pricing = useApp((state) => state.cartPricing());
+  const getCartPricing = useApp((state) => state.cartPricing);
   const promoCode = useApp((state) => state.promoCode);
   const applyPromoCode = useApp((state) => state.applyPromoCode);
   const clearPromoCode = useApp((state) => state.clearPromoCode);
   const [promoInput, setPromoInput] = useState(promoCode);
+  const pricing = getCartPricing();
 
   const isEmpty = cart.length === 0;
   const upsells = useMemo(() => getCartUpsells(cart.map((line) => line.product.id), 6), [cart]);
@@ -29,27 +30,27 @@ export function CartScreen() {
     return (
       <div className="animate-screen-in px-5 pt-3 pb-4 h-full flex flex-col">
         <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight">
-          Your cart
+          Savat
         </h1>
         <div className="flex-1 flex flex-col">
           <EmptyState
             className="my-6"
             icon={<ShoppingBag className="w-9 h-9" strokeWidth={1.75} />}
-            title="Your cart is empty"
-            body="Browse our hand-trimmed halal cuts and they will show up here."
+            title="Savatingiz hozircha bo'sh"
+            body="Mahsulot qo'shsangiz, ular shu yerda ko'rinadi."
             action={
               <button
                 onClick={() => navigate({ name: "categories" })}
                 className="tap h-12 px-6 rounded-full bg-primary text-primary-foreground font-semibold text-sm shadow-fab active:scale-95 transition-transform"
               >
-                Start shopping
+                Xaridni boshlash
               </button>
             }
           />
 
           <SectionHeader
-            eyebrow="Customer favourites"
-            title="Loved by everyone"
+            eyebrow="Mijozlar tanlovi"
+            title="Ommabop mahsulotlar"
             inline
             className="px-5 mt-4"
           />
@@ -76,16 +77,18 @@ export function CartScreen() {
   };
 
   return (
-    <div className="animate-screen-in pb-6">
+    <div className="animate-screen-in pb-28">
       <div className="px-5 pt-3 pb-2 flex items-end justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Review</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+            Savat
+          </p>
           <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight">
-            Your cart
+            Buyurtmangiz
           </h1>
         </div>
         <span className="text-xs text-muted-foreground mb-1">
-          {cart.length} item{cart.length === 1 ? "" : "s"}
+          {cart.length} ta mahsulot
         </span>
       </div>
 
@@ -127,10 +130,10 @@ export function CartScreen() {
                   <button
                     onClick={() => {
                       removeFromCart(lineId);
-                      toast(`${line.product.name} removed`, { duration: 1500 });
+                      toast(`${line.product.name} savatdan olib tashlandi`, { duration: 1500 });
                     }}
                     className="tap shrink-0 w-7 h-7 grid place-items-center rounded-full text-muted-foreground hover:text-sale active:scale-90 transition-all"
-                    aria-label="Remove"
+                    aria-label="Olib tashlash"
                   >
                     <Trash2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                   </button>
@@ -163,8 +166,8 @@ export function CartScreen() {
       {upsells.length > 0 && (
         <div className="mt-6">
           <SectionHeader
-            eyebrow={pricing.freeDeliveryUnlocked ? "More to love" : "Add to unlock free delivery"}
-            title="Frequently added"
+            eyebrow={pricing.freeDeliveryUnlocked ? "Yana qo'shing" : "Bepul yetkazish uchun"}
+            title="Ko'p qo'shiladiganlar"
           />
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-2.5 px-5 pb-1">
@@ -182,14 +185,14 @@ export function CartScreen() {
           <input
             value={promoInput}
             onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
-            placeholder="Promo code"
+            placeholder="Promo kod"
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
           <button
             onClick={() => handlePromoApply()}
             className="tap text-xs font-bold text-primary px-2 active:scale-95 transition-transform"
           >
-            APPLY
+            Qo'llash
           </button>
         </div>
         <div className="flex flex-wrap gap-2 mt-3">
@@ -210,16 +213,16 @@ export function CartScreen() {
               }}
               className="tap h-8 px-3 rounded-full bg-primary-soft text-[11px] font-semibold text-primary active:scale-95 transition-transform"
             >
-              Clear promo
+              Promo kodni tozalash
             </button>
           )}
         </div>
       </div>
 
       <div className="mx-5 mt-3 bg-surface rounded-2xl p-4 shadow-card space-y-2.5">
-        <Row label="Subtotal" value={formatCurrency(pricing.subtotal)} />
+        <Row label="Oraliq summa" value={formatCurrency(pricing.subtotal)} />
         {pricing.savings > 0 && (
-          <Row label="You save" value={`-${formatCurrency(pricing.savings)}`} accent="sale" />
+          <Row label="Tejadingiz" value={`-${formatCurrency(pricing.savings)}`} accent="sale" />
         )}
         {pricing.promoDiscount > 0 && (
           <Row
@@ -229,25 +232,25 @@ export function CartScreen() {
           />
         )}
         <Row
-          label="Delivery"
-          value={pricing.delivery === 0 ? "FREE" : formatCurrency(pricing.delivery)}
+          label="Yetkazib berish"
+          value={pricing.delivery === 0 ? "Bepul" : formatCurrency(pricing.delivery)}
           accent={pricing.delivery === 0 ? "primary" : undefined}
         />
         <div className="border-t border-dashed border-border my-1" />
-        <Row label="Total" value={formatCurrency(pricing.total)} bold />
+        <Row label="Jami" value={formatCurrency(pricing.total)} bold />
 
         <div className="flex items-center gap-1.5 pt-2 text-[11px] text-muted-foreground">
           <ShieldCheck className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-          Secure checkout - halal guarantee - same-day support
+          Xavfsiz rasmiylashtirish, halol kafolat va tezkor yordam
         </div>
       </div>
 
-      <div className="sticky bottom-0 mt-4 px-4 pb-3 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent">
+      <div className="sticky bottom-0 z-10 mt-4 px-4 pb-3 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none">
         <button
           onClick={() => navigate({ name: "checkout" })}
-          className="tap w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5"
+          className="tap pointer-events-auto w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5"
         >
-          <span>Continue to checkout</span>
+          <span>Rasmiylashtirishga o'tish</span>
           <span className="tabular-nums">{formatCurrency(pricing.total)}</span>
         </button>
       </div>

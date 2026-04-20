@@ -10,7 +10,7 @@ describe("telegram bot copy", () => {
   it("builds category messages with catalogue items", () => {
     const message = buildCategoryMessage("beef");
     expect(message).toContain("Mol go'shti");
-    expect(message).toContain("Ground Beef");
+    expect(message).toContain("Qiyma mol go'shti");
   });
 
   it("includes promo codes in deals", () => {
@@ -21,6 +21,6 @@ describe("telegram bot copy", () => {
 
   it("keeps the welcome message actionable", () => {
     expect(buildWelcomeMessage(true)).toContain("Mini App");
-    expect(buildSupportMessage()).toContain("order ID");
+    expect(buildSupportMessage()).toContain("buyurtma ID");
   });
 });

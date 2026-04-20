@@ -30,41 +30,41 @@ export function ProfileScreen() {
   const items: { Icon: typeof Package; label: string; hint: string; onClick: () => void }[] = [
     {
       Icon: Package,
-      label: "My orders",
-      hint: orders.length > 0 ? `${orders.length} recent order${orders.length === 1 ? "" : "s"}` : "Track order status",
+      label: "Buyurtmalarim",
+      hint: orders.length > 0 ? `${orders.length} ta buyurtma` : "Buyurtma holatini kuzatish",
       onClick: () => navigate({ name: "orders" }),
     },
     {
       Icon: Heart,
-      label: "Favorites",
-      hint: favorites.length > 0 ? `${favorites.length} saved` : "Saved items",
+      label: "Sevimlilar",
+      hint: favorites.length > 0 ? `${favorites.length} ta saqlangan` : "Saqlangan mahsulotlar",
       onClick: () => navigate({ name: "favorites" }),
     },
     {
       Icon: MapPin,
-      label: "Delivery details",
+      label: "Yetkazish ma'lumoti",
       hint: checkout.address,
       onClick: () => navigate({ name: "checkout" }),
     },
     {
       Icon: ShoppingBag,
-      label: "Current basket",
-      hint: cartCount > 0 ? `${cartCount} item${cartCount === 1 ? "" : "s"} ready` : "Start a fresh order",
+      label: "Joriy savat",
+      hint: cartCount > 0 ? `${cartCount} ta mahsulot tayyor` : "Yangi buyurtma boshlash",
       onClick: () => navigate({ name: "cart" }),
     },
     {
       Icon: HelpCircle,
-      label: "Help and support",
-      hint: "Delivery, returns, Telegram bot",
+      label: "Yordam bo'limi",
+      hint: "Yetkazish, qaytarish, Telegram bot",
       onClick: () => navigate({ name: "support" }),
     },
   ];
 
   return (
     <div className="animate-screen-in px-5 pt-3 pb-6">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Account</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Profil</p>
       <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight mb-5">
-        Welcome back
+        Xush kelibsiz
       </h1>
 
       <div className="bg-foreground text-background rounded-3xl p-5 relative overflow-hidden shadow-elevated">
@@ -79,9 +79,9 @@ export function ProfileScreen() {
           </div>
         </div>
         <div className="relative mt-4 grid grid-cols-3 gap-2 text-center">
-          <Stat value={String(orders.length)} label="Orders" />
-          <Stat value={String(favorites.length)} label="Saved" />
-          <Stat value="Gold" label="Priority" icon />
+          <Stat value={String(orders.length)} label="Buyurtma" />
+          <Stat value={String(favorites.length)} label="Saqlangan" />
+          <Stat value="Faol" label="Holat" icon />
         </div>
       </div>
 
@@ -107,26 +107,26 @@ export function ProfileScreen() {
       <button
         onClick={() => {
           resetDemoData();
-          toast.success("Demo data cleared");
+          toast.success("Demo ma'lumotlari tozalandi");
         }}
         className="tap mt-4 w-full h-12 rounded-2xl bg-surface text-primary font-semibold text-sm shadow-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
       >
         <RotateCcw className="w-4 h-4" strokeWidth={2.5} />
-        Reset demo data
+        Demo ma'lumotlarini tozalash
       </button>
 
       <div className="mt-4 rounded-2xl border border-border bg-paper p-4">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Settings className="w-4 h-4 text-primary" strokeWidth={2.5} />
-          Store preferences
+          Do'kon sozlamalari
         </div>
         <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-          Orders use your saved contact and delivery details. Update them anytime during checkout.
+          Buyurtmalarda saqlangan kontakt va manzil ma'lumotlari ishlatiladi. Ularni rasmiylashtirish oynasida istalgan payt yangilashingiz mumkin.
         </p>
       </div>
 
       <p className="text-center text-[10px] text-muted-foreground font-medium tracking-[0.2em] uppercase mt-6">
-        Fresh Halal Direct - App profile
+        Fresh Halal Direct - Profil
       </p>
     </div>
   );

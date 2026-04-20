@@ -98,18 +98,18 @@ interface AppState {
   cartPricing: () => CartPricing;
 }
 
-export const DEFAULT_PROFILE_NAME = "Fresh Halal customer";
-export const DEFAULT_DELIVERY_WINDOW = "Today, 18:00 - 20:00";
+export const DEFAULT_PROFILE_NAME = "Halal Direct mijozi";
+export const DEFAULT_DELIVERY_WINDOW = "Bugun, 18:00 - 20:00";
 
 export const DEFAULT_ADDRESSES: SavedAddress[] = [
   {
     id: "home",
-    label: "Home",
+    label: "Uy",
     address: "Yunusobod tumani, 14-kvartal, 23-uy, Tashkent",
   },
   {
     id: "office",
-    label: "Office",
+    label: "Ofis",
     address: "Oybek ko'chasi, 18A, 6-qavat, Tashkent",
   },
 ];
@@ -131,12 +131,8 @@ function createAddressId() {
   return `addr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function getSelectedAddress(addresses: SavedAddress[], addressId?: string, fallbackAddress?: string) {
-  return (
-    addresses.find((address) => address.id === addressId) ??
-    addresses.find((address) => address.address === fallbackAddress) ??
-    addresses[0]
-  );
+function normalizeAddressText(value?: string) {
+  return value?.trim() ?? "";
 }
 
 function normalizeSavedAddresses(
@@ -148,7 +144,7 @@ function normalizeSavedAddresses(
   const normalized = source
     .map((address, index) => ({
       id: address.id?.trim() || `saved-${index + 1}`,
-      label: address.label?.trim() || `Address ${index + 1}`,
+      label: address.label?.trim() || `Manzil ${index + 1}`,
       address: address.address?.trim() || "",
     }))
     .filter((address) => {
@@ -163,7 +159,7 @@ function normalizeSavedAddresses(
   if (fallbackAddress?.trim() && !seen.has(fallbackAddress.trim())) {
     normalized.unshift({
       id: "saved-current",
-      label: "Selected address",
+      label: "Tanlangan manzil",
       address: fallbackAddress.trim(),
     });
   }
@@ -174,15 +170,29 @@ function normalizeSavedAddresses(
 function normalizeCheckout(
   checkout?: Partial<CheckoutForm>,
   savedAddresses?: SavedAddress[],
+  options?: {
+    includeFallbackAddress?: boolean;
+  },
 ): CheckoutForm {
-  const addresses = normalizeSavedAddresses(savedAddresses, checkout?.address);
-  const selectedAddress = getSelectedAddress(addresses, checkout?.addressId, checkout?.address);
+  const includeFallbackAddress = Boolean(options?.includeFallbackAddress);
+  const addresses = normalizeSavedAddresses(
+    savedAddresses,
+    includeFallbackAddress ? checkout?.address : undefined,
+  );
+  const rawAddress = normalizeAddressText(checkout?.address);
+  const selectedAddress = addresses.find((address) => address.id === checkout?.addressId);
+  const matchedByText = rawAddress
+    ? addresses.find((address) => normalizeAddressText(address.address) === rawAddress)
+    : undefined;
+  const resolvedAddressId = rawAddress
+    ? matchedByText?.id ?? ""
+    : selectedAddress?.id ?? DEFAULT_CHECKOUT.addressId;
 
   return {
     ...DEFAULT_CHECKOUT,
     ...checkout,
-    addressId: selectedAddress.id,
-    address: checkout?.address?.trim() || selectedAddress.address,
+    addressId: resolvedAddressId,
+    address: rawAddress || selectedAddress?.address || DEFAULT_CHECKOUT.address,
     deliveryWindow: checkout?.deliveryWindow?.trim() || DEFAULT_DELIVERY_WINDOW,
   };
 }
@@ -194,7 +204,7 @@ export const useApp = create<AppState>()(
       history: [],
       cart: [],
       favorites: [],
-      recentSearches: ["Ribeye", "Lamb chops", "Chicken wings"],
+      recentSearches: ["Mol ribay steyki", "Qo'y kotleti", "Tovuq qanotlari"],
       savedAddresses: DEFAULT_ADDRESSES,
       checkout: DEFAULT_CHECKOUT,
       promoCode: "",
@@ -283,10 +293,13 @@ export const useApp = create<AppState>()(
       clearRecentSearches: () => set({ recentSearches: [] }),
       updateCheckout: (patch) =>
         set((state) => ({
-          checkout: {
-            ...state.checkout,
-            ...patch,
-          },
+          checkout: normalizeCheckout(
+            {
+              ...state.checkout,
+              ...patch,
+            },
+            state.savedAddresses,
+          ),
         })),
       selectAddress: (addressId) =>
         set((state) => {
@@ -296,11 +309,14 @@ export const useApp = create<AppState>()(
           }
 
           return {
-            checkout: {
-              ...state.checkout,
-              addressId: selectedAddress.id,
-              address: selectedAddress.address,
-            },
+            checkout: normalizeCheckout(
+              {
+                ...state.checkout,
+                addressId: selectedAddress.id,
+                address: selectedAddress.address,
+              },
+              state.savedAddresses,
+            ),
           };
         }),
       saveAddress: (address) => {
@@ -335,11 +351,14 @@ export const useApp = create<AppState>()(
 
           return {
             savedAddresses: nextAddresses,
-            checkout: {
-              ...state.checkout,
-              addressId: savedId!,
-              address: fullAddress,
-            },
+            checkout: normalizeCheckout(
+              {
+                ...state.checkout,
+                addressId: savedId!,
+                address: fullAddress,
+              },
+              nextAddresses,
+            ),
           };
         });
 
@@ -436,7 +455,39 @@ export const useApp = create<AppState>()(
         return {
           ...state,
           savedAddresses,
-          checkout: normalizeCheckout(state.checkout, savedAddresses),
+          checkout: normalizeCheckout(state.checkout, savedAddresses, {
+            includeFallbackAddress: true,
+          }),
+        };
+      },
+      merge: (persistedState, currentState) => {
+        const state = (persistedState ?? {}) as Partial<AppState> & {
+          checkout?: Partial<CheckoutForm>;
+          savedAddresses?: SavedAddress[];
+        };
+        const savedAddresses = normalizeSavedAddresses(
+          state.savedAddresses ?? currentState.savedAddresses,
+          state.checkout?.address ?? currentState.checkout.address,
+        );
+
+        return {
+          ...currentState,
+          ...state,
+          savedAddresses,
+          checkout: normalizeCheckout(
+            {
+              ...currentState.checkout,
+              ...state.checkout,
+            },
+            savedAddresses,
+            {
+              includeFallbackAddress: true,
+            },
+          ),
+          recentSearches:
+            state.recentSearches && state.recentSearches.length > 0
+              ? state.recentSearches
+              : currentState.recentSearches,
         };
       },
     },

@@ -32,7 +32,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
     addToCart(product, 1, product.weightOptions?.[0]);
     setBump(true);
     window.setTimeout(() => setBump(false), 350);
-    toast.success(`Added ${product.name}`, {
+    toast.success(`${product.name} savatga qo'shildi`, {
       description: `${formatCurrency(product.price)} - ${product.weight}`,
       duration: 1500,
     });
@@ -74,7 +74,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
               "tap shrink-0 w-7 h-7 rounded-full bg-foreground text-background grid place-items-center active:scale-90 transition-transform",
               bump && "animate-pop",
             )}
-            aria-label={`Add ${product.name}`}
+            aria-label={`${product.name} qo'shish`}
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={3} />
           </button>
@@ -109,7 +109,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
           ) : null}
           <button
             onClick={handleFavorite}
-            aria-label={`Save ${product.name}`}
+            aria-label={`${product.name} saqlash`}
             className="tap absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-surface/90 backdrop-blur grid place-items-center shadow-xs active:scale-90 transition-transform"
           >
             <Heart
@@ -141,7 +141,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
               "tap shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-fab active:scale-90 transition-transform",
               bump && "animate-pop",
             )}
-            aria-label={`Add ${product.name}`}
+            aria-label={`${product.name} qo'shish`}
           >
             <Plus className="w-4 h-4" strokeWidth={2.75} />
           </button>
@@ -175,7 +175,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
         ) : null}
         <button
           onClick={handleFavorite}
-          aria-label={`Save ${product.name}`}
+          aria-label={`${product.name} saqlash`}
           className="tap absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-surface/90 backdrop-blur grid place-items-center shadow-xs active:scale-90 transition-transform"
         >
           <Heart
@@ -207,7 +207,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
             "tap shrink-0 w-9 h-9 rounded-full bg-primary text-primary-foreground grid place-items-center shadow-fab active:scale-90 transition-transform",
             bump && "animate-pop",
           )}
-          aria-label={`Add ${product.name}`}
+          aria-label={`${product.name} qo'shish`}
         >
           <Plus className="w-4 h-4" strokeWidth={2.75} />
         </button>

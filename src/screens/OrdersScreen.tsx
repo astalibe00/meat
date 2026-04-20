@@ -12,14 +12,14 @@ export function OrdersScreen() {
       <div className="animate-screen-in px-5 pt-3 pb-6">
         <EmptyState
           icon={<PackageCheck className="w-9 h-9" strokeWidth={1.75} />}
-          title="No orders yet"
-          body="Once you place an order, the delivery timeline will appear here."
+          title="Buyurtmalar yo'q"
+          body="Buyurtma qilganingizdan keyin uning holati shu yerda ko'rinadi."
           action={
             <button
               onClick={() => navigate({ name: "categories" })}
               className="tap h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform"
             >
-              Start shopping
+              Xaridni boshlash
             </button>
           }
         />
@@ -29,18 +29,18 @@ export function OrdersScreen() {
 
   return (
     <div className="animate-screen-in px-5 pt-3 pb-6">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Orders</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Buyurtmalar</p>
       <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight mt-0.5">
-        Delivery timeline
+        Yetkazish holati
       </h1>
       <p className="text-sm text-muted-foreground mt-1">
-        Keep this page handy to track your latest order and repeat favourites quickly.
+        Oxirgi buyurtmangizni va yetkazish vaqtini shu sahifada kuzating.
       </p>
 
       <div className="mt-5 space-y-3">
         {orders.map((order, index) => {
           const createdAt = new Date(order.createdAt);
-          const status = index === 0 ? "Preparing now" : "Confirmed";
+          const status = index === 0 ? "Tayyorlanmoqda" : "Tasdiqlangan";
 
           return (
             <div key={order.id} className="rounded-2xl bg-surface p-4 shadow-card">
@@ -48,7 +48,7 @@ export function OrdersScreen() {
                 <div>
                   <p className="text-sm font-semibold">{order.id}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {formatDate(createdAt)} at {formatTime(createdAt)}
+                    {formatDate(createdAt)} {formatTime(createdAt)}
                   </p>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-primary-soft text-primary text-[11px] font-semibold">
@@ -57,9 +57,9 @@ export function OrdersScreen() {
               </div>
 
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                <OrderStat icon={<PackageCheck className="w-4 h-4" strokeWidth={2.25} />} label="Items" value={String(order.items.length)} />
-                <OrderStat icon={<Clock3 className="w-4 h-4" strokeWidth={2.25} />} label="Slot" value={order.customer.deliveryWindow.split(",")[0]} />
-                <OrderStat icon={<Truck className="w-4 h-4" strokeWidth={2.25} />} label="Total" value={formatCurrency(order.total)} />
+                <OrderStat icon={<PackageCheck className="w-4 h-4" strokeWidth={2.25} />} label="Mahsulot" value={String(order.items.length)} />
+                <OrderStat icon={<Clock3 className="w-4 h-4" strokeWidth={2.25} />} label="Vaqt" value={order.customer.deliveryWindow.split(",")[0]} />
+                <OrderStat icon={<Truck className="w-4 h-4" strokeWidth={2.25} />} label="Jami" value={formatCurrency(order.total)} />
               </div>
 
               <div className="mt-4 space-y-2">
@@ -77,7 +77,7 @@ export function OrdersScreen() {
 
               <div className="border-t border-dashed border-border my-4" />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Delivery to {order.customer.address}
+                Yetkazish manzili: {order.customer.address}
                 {order.customer.notes ? ` - ${order.customer.notes}` : ""}
               </p>
             </div>

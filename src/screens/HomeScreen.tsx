@@ -26,37 +26,37 @@ const banners = [
   {
     id: 1,
     img: banner1,
-    eyebrow: "This week",
-    title: "Premium cuts,\nhand-trimmed daily",
-    cta: "Shop premium",
+    eyebrow: "Shu hafta",
+    title: "Premium bo'laklar,\nhar kuni yangi tayyorlanadi",
+    cta: "Premiumni ko'rish",
     accent: "from-foreground/85 via-foreground/45",
     action: { name: "categories", category: "beef" } as const,
   },
   {
     id: 2,
     img: banner2,
-    eyebrow: "Weekend deal",
-    title: "Save up to 25%\non whole roasts",
-    cta: "View offers",
+    eyebrow: "Dam olish kuni",
+    title: "Butun go'shtlarda\n25% gacha chegirma",
+    cta: "Takliflarni ko'rish",
     accent: "from-sale/85 via-sale/40",
     action: { name: "categories", saleOnly: true } as const,
   },
   {
     id: 3,
     img: banner3,
-    eyebrow: "Free delivery",
-    title: `On every order\nover ${formatCurrency(FREE_SHIPPING_THRESHOLD)}`,
-    cta: "Start shopping",
+    eyebrow: "Bepul yetkazish",
+    title: `Har bir buyurtmada\n${formatCurrency(FREE_SHIPPING_THRESHOLD)} dan boshlab`,
+    cta: "Xaridni boshlash",
     accent: "from-primary/90 via-primary/45",
     action: { name: "categories" } as const,
   },
 ];
 
 const TRUST_PILLS = [
-  { Icon: BadgeCheck, label: "Halal certified" },
-  { Icon: Leaf, label: "Hand-trimmed" },
-  { Icon: Truck, label: "Same-day" },
-  { Icon: Clock, label: "Cut to order" },
+  { Icon: BadgeCheck, label: "Halol sertifikat" },
+  { Icon: Leaf, label: "Tozalab kesilgan" },
+  { Icon: Truck, label: "Bir kunda" },
+  { Icon: Clock, label: "Buyurtmaga tayyor" },
 ];
 
 export function HomeScreen() {
@@ -68,11 +68,11 @@ export function HomeScreen() {
   return (
     <div className="animate-screen-in pb-6">
       <div className="px-5 pt-4 pb-3">
-        <p className="text-xs text-muted-foreground font-medium">Fresh halal delivery</p>
+        <p className="text-xs text-muted-foreground font-medium">Yangi halol yetkazib berish</p>
         <h1 className="font-serif text-[28px] leading-[1.05] font-semibold tracking-tight mt-1 text-balance">
-          Fresh halal cuts,
+          Yangi halol go'sht,
           <br />
-          <span className="italic text-primary">delivered to your door.</span>
+          <span className="italic text-primary">eshigingizgacha yetkaziladi.</span>
         </h1>
       </div>
 
@@ -83,7 +83,7 @@ export function HomeScreen() {
         >
           <Search className="w-4 h-4 text-foreground/50" strokeWidth={2.5} />
           <span className="text-sm text-muted-foreground flex-1">
-            Search beef, lamb, chicken...
+            Mol, qo'y, tovuq mahsulotlarini qidiring...
           </span>
           <span className="w-9 h-9 rounded-full bg-primary text-primary-foreground grid place-items-center">
             <Sparkles className="w-3.5 h-3.5" strokeWidth={2.5} />
@@ -139,8 +139,8 @@ export function HomeScreen() {
 
       <div className="mt-7">
         <SectionHeader
-          eyebrow="Shop by"
-          title="Categories"
+          eyebrow="Bo'limlar"
+          title="Kategoriyalar"
           onSeeAll={() => navigate({ name: "categories" })}
         />
         <div className="overflow-x-auto no-scrollbar">
@@ -165,8 +165,8 @@ export function HomeScreen() {
 
       <div className="mt-7">
         <SectionHeader
-          eyebrow="Loved by customers"
-          title="Popular this week"
+          eyebrow="Mijozlar tanlovi"
+          title="Shu haftaning mashhurlari"
           onSeeAll={() => navigate({ name: "categories", sort: "popular" })}
         />
         <div className="overflow-x-auto no-scrollbar">
@@ -180,8 +180,8 @@ export function HomeScreen() {
 
       <div className="mt-7">
         <SectionHeader
-          eyebrow="Limited time"
-          title="On sale"
+          eyebrow="Cheklangan vaqt"
+          title="Aksiyadagi mahsulotlar"
           onSeeAll={() => navigate({ name: "categories", saleOnly: true })}
         />
         <div className="overflow-x-auto no-scrollbar">
@@ -194,7 +194,7 @@ export function HomeScreen() {
       </div>
 
       <div className="mt-7 px-5">
-        <SectionHeader eyebrow="Cut today" title="Fresh from the block" inline />
+        <SectionHeader eyebrow="Bugun tayyor" title="Yangi kelganlar" inline />
         <div className="grid grid-cols-2 gap-3 mt-1">
           {fresh.slice(0, 4).map((product) => (
             <ProductCard key={product.id} product={product} variant="grid" />
@@ -207,38 +207,38 @@ export function HomeScreen() {
         <div className="relative">
           <span className="chip bg-primary text-primary-foreground mb-3">
             <BadgeCheck className="w-3 h-3" strokeWidth={3} />
-            Certified
+            Sertifikatlangan
           </span>
           <h3 className="font-serif text-[22px] leading-tight font-semibold mb-1.5">
-            100% halal,
+            100% halol,
             <br />
-            no compromises.
+            murosasiz sifat.
           </h3>
           <p className="text-xs text-background/70 leading-relaxed max-w-[280px]">
-            Every cut is halal certified, ethically sourced, and prepared for reliable
-            same-day delivery.
+            Har bir mahsulot halol sertifikatli, ishonchli manbadan olingan va bir kunlik
+            yetkazib berishga tayyorlanadi.
           </p>
           <div className="mt-4 flex items-center gap-3 text-[11px] font-semibold">
             <span className="flex items-center gap-1.5">
               <BadgeCheck className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              Halal
+              Halol
             </span>
             <span className="w-px h-3 bg-background/20" />
             <span className="flex items-center gap-1.5">
               <Leaf className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              Ethical
+              Toza manba
             </span>
             <span className="w-px h-3 bg-background/20" />
             <span className="flex items-center gap-1.5">
               <Flame className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              Hand-cut
+              Qo'lda kesilgan
             </span>
           </div>
         </div>
       </div>
 
       <p className="text-center text-[10px] text-muted-foreground font-medium tracking-[0.2em] uppercase mt-8 mb-2">
-        Fresh Halal Direct - Same-day delivery
+        Fresh Halal Direct - Bir kunlik yetkazish
       </p>
     </div>
   );

@@ -6,12 +6,12 @@ import { CATEGORIES, PRODUCTS } from "@/data/products";
 import { useApp } from "@/store/useApp";
 
 const POPULAR_QUERIES = [
-  "Ribeye",
-  "Lamb chops",
-  "Whole chicken",
-  "Wings",
-  "Family box",
-  "Salmon",
+  "Mol ribay steyki",
+  "Qo'y kotleti",
+  "Butun tovuq",
+  "Tovuq qanotlari",
+  "Oilaviy halol to'plam",
+  "Yovvoyi losos",
 ];
 
 export function SearchScreen() {
@@ -44,9 +44,9 @@ export function SearchScreen() {
 
   return (
     <div className="animate-screen-in px-5 pt-3 pb-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Find</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Qidiruv</p>
       <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight mt-0.5 mb-4">
-        What are you craving?
+        Nima izlayapsiz?
       </h1>
 
       <div className="relative">
@@ -60,14 +60,14 @@ export function SearchScreen() {
           onChange={(event) => setQuery(event.target.value)}
           onBlur={onSubmit}
           onKeyDown={(event) => event.key === "Enter" && onSubmit()}
-          placeholder="Search beef, lamb, chicken..."
+          placeholder="Mol, qo'y, tovuq mahsulotlarini qidiring..."
           className="w-full h-12 rounded-full bg-surface shadow-card pl-11 pr-12 text-sm font-medium outline-none focus:ring-2 focus:ring-primary border border-border/50"
         />
         {query && (
           <button
             onClick={() => setQuery("")}
             className="tap absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center rounded-full bg-paper active:scale-90 transition-transform"
-            aria-label="Clear"
+            aria-label="Tozalash"
           >
             <X className="w-3.5 h-3.5" strokeWidth={2.5} />
           </button>
@@ -80,13 +80,13 @@ export function SearchScreen() {
             <section>
               <div className="flex items-center justify-between mb-2.5">
                 <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                  Recent
+                  So'nggi qidiruvlar
                 </h2>
                 <button
                   onClick={clearRecentSearches}
                   className="tap text-[11px] font-semibold text-primary active:scale-95 transition-transform"
                 >
-                  Clear
+                  Tozalash
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -106,7 +106,7 @@ export function SearchScreen() {
 
           <section>
             <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2.5">
-              Trending searches
+              Ommabop qidiruvlar
             </h2>
             <div className="flex flex-wrap gap-2">
               {POPULAR_QUERIES.map((item) => (
@@ -124,7 +124,7 @@ export function SearchScreen() {
 
           <section>
             <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2.5">
-              Browse categories
+              Kategoriyalar
             </h2>
             <div className="grid grid-cols-3 gap-2">
               {CATEGORIES.map((category) => (
@@ -146,7 +146,7 @@ export function SearchScreen() {
         <div className="mt-5">
           <p className="text-xs text-muted-foreground mb-3">
             <span className="font-bold tabular-nums text-foreground">{results.length}</span>{" "}
-            result{results.length === 1 ? "" : "s"} for{" "}
+            ta natija{" "}
             <span className="text-foreground font-semibold">"{query}"</span>
           </p>
           {results.length > 0 ? (
@@ -158,14 +158,14 @@ export function SearchScreen() {
           ) : (
             <EmptyState
               icon={<SearchX className="w-9 h-9" strokeWidth={1.75} />}
-              title="No matches found"
-              body={`We could not find anything for "${query}". Try a different cut or category.`}
+              title="Hech narsa topilmadi"
+              body={`"${query}" bo'yicha natija topilmadi. Boshqa mahsulot yoki kategoriya sinab ko'ring.`}
               action={
                 <button
                   onClick={() => setQuery("")}
                   className="tap h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform"
                 >
-                  Clear search
+                  Qidiruvni tozalash
                 </button>
               }
             />

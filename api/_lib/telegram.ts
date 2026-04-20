@@ -88,7 +88,7 @@ export function mainReplyKeyboard() {
     keyboard: [
       firstRow,
       [{ text: "Katalog" }, { text: "Aksiyalar" }],
-      [{ text: "Yetkazib berish" }, { text: "Support" }],
+      [{ text: "Yetkazib berish" }, { text: "Yordam" }],
     ],
     resize_keyboard: true,
     is_persistent: true,
@@ -108,7 +108,7 @@ export function mainInlineKeyboard() {
         { text: "Aksiyalar", callback_data: "menu:deals" },
         { text: "Yetkazib berish", callback_data: "menu:delivery" },
       ],
-      [{ text: "Support", callback_data: "menu:support" }],
+      [{ text: "Yordam", callback_data: "menu:support" }],
     ],
   };
 }

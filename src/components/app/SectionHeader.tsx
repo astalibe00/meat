@@ -27,7 +27,7 @@ export function SectionHeader({ title, eyebrow, onSeeAll, className, inline }: P
           onClick={onSeeAll}
           className="tap shrink-0 flex items-center text-xs font-semibold text-foreground/70 hover:text-primary active:scale-95 transition-all"
         >
-          See all <ChevronRight className="w-3.5 h-3.5 -mr-1" strokeWidth={2.5} />
+          Barchasi <ChevronRight className="w-3.5 h-3.5 -mr-1" strokeWidth={2.5} />
         </button>
       )}
     </div>

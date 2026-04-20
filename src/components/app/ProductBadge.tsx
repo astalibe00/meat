@@ -14,6 +14,19 @@ const TAG_STYLES: Record<Tag | "Halal" | "Save", string> = {
   "Best Deal": "bg-sale text-destructive-foreground",
 };
 
+const TAG_LABELS: Record<string, string> = {
+  Halal: "Halol",
+  Save: "Tejash",
+  Sale: "Aksiya",
+  Popular: "Mashhur",
+  Premium: "Premium",
+  Fresh: "Yangi",
+  "Best Value": "Qulay narx",
+  Traditional: "An'anaviy",
+  "Wild Caught": "Yovvoyi ov",
+  "Best Deal": "Eng yaxshi taklif",
+};
+
 interface Props {
   label: string;
   variant?: keyof typeof TAG_STYLES;
@@ -22,5 +35,5 @@ interface Props {
 
 export function ProductBadge({ label, variant, className }: Props) {
   const style = TAG_STYLES[(variant ?? label) as keyof typeof TAG_STYLES] ?? "bg-paper text-foreground";
-  return <span className={cn("chip", style, className)}>{label}</span>;
+  return <span className={cn("chip", style, className)}>{TAG_LABELS[label] ?? label}</span>;
 }
