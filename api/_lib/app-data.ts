@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type {
+  AdminAuthState,
   AppDataState,
   CustomerOrder,
   CustomerProfile,
@@ -245,6 +246,12 @@ function withDefaults(product: SeedProduct): ManagedProduct {
   };
 }
 
+function getDefaultAdminAuth(): AdminAuthState {
+  return {
+    sessions: [],
+  };
+}
+
 export function getDefaultAppData(): AppDataState {
   return {
     products: DEFAULT_PRODUCTS.map(withDefaults),
@@ -253,6 +260,7 @@ export function getDefaultAppData(): AppDataState {
     orders: [],
     reviews: [],
     broadcasts: [],
+    adminAuth: getDefaultAdminAuth(),
   };
 }
 
@@ -349,6 +357,13 @@ export function normalizeAppData(state?: Partial<AppDataState>): AppDataState {
     orders: state?.orders ?? [],
     reviews: state?.reviews ?? [],
     broadcasts: state?.broadcasts ?? [],
+    adminAuth: {
+      loginCode: state?.adminAuth?.loginCode,
+      loginCodeExpiresAt: state?.adminAuth?.loginCodeExpiresAt,
+      sessions: (state?.adminAuth?.sessions ?? []).filter((session) => {
+        return Date.parse(session.expiresAt) > Date.now();
+      }),
+    },
   };
 }
 

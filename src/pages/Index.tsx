@@ -101,9 +101,9 @@ export default function Index() {
 
       <div className="orientation-lock hidden landscape:flex fixed inset-0 bg-foreground/88 backdrop-blur-xl z-40 items-center justify-center p-6 sm:hidden">
         <div className="max-w-sm rounded-[32px] bg-surface p-6 text-center shadow-elevated">
-          <h2 className="font-serif text-2xl font-semibold">Portret holatga o‘ting</h2>
+          <h2 className="font-serif text-2xl font-semibold">Portret holatga o'ting</h2>
           <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            Mini App faqat vertical ko‘rinishda ishlaydi.
+            Mini App faqat vertical ko'rinishda ishlaydi.
           </p>
         </div>
       </div>

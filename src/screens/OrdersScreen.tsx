@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Clock3, PackageCheck, Star, Truck, XCircle } from "lucide-react";
+import { Clock3, PackageCheck, RotateCcw, Star, Truck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/app/EmptyState";
 import { formatCurrency, formatDate, formatTime } from "@/lib/format";
@@ -16,6 +16,7 @@ export function OrdersScreen() {
   const navigate = useApp((state) => state.navigate);
   const cancelOrder = useApp((state) => state.cancelOrder);
   const submitReview = useApp((state) => state.submitReview);
+  const repeatOrder = useApp((state) => state.repeatOrder);
 
   if (orders.length === 0) {
     return (
@@ -81,6 +82,15 @@ export function OrdersScreen() {
 
               toast.success("Sharh qabul qilindi.");
             }}
+            onRepeat={() => {
+              const result = repeatOrder(order.id);
+              if (!result.ok) {
+                toast.error(result.message);
+                return;
+              }
+
+              toast.success(result.message);
+            }}
           />
         ))}
       </div>
@@ -92,10 +102,12 @@ function OrderCard({
   order,
   onCancel,
   onReview,
+  onRepeat,
 }: {
   order: CustomerOrder;
   onCancel: () => Promise<void>;
   onReview: (rating: number, comment?: string) => Promise<void>;
+  onRepeat: () => void;
 }) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -103,10 +115,12 @@ function OrderCard({
   const createdAt = new Date(order.createdAt);
   const canCancel = !["completed", "cancelled"].includes(order.status);
   const canReview = order.status === "completed" && (order.reviewIds?.length ?? 0) === 0;
+  const canRepeat = order.items.length > 0;
   const headlineEvent = useMemo(
     () => order.statusHistory[order.statusHistory.length - 1],
     [order.statusHistory],
   );
+  const timeline = getOrderTimeline(order);
 
   return (
     <div className="rounded-2xl bg-surface p-4 shadow-card">
@@ -138,6 +152,43 @@ function OrderCard({
         <p className="mt-1 text-xs text-muted-foreground">
           {PAYMENT_STATUS_LABELS[order.paymentStatus]}
         </p>
+        {order.paymentCardNumber && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            P2P karta: {order.paymentCardNumber}
+            {order.paymentReference ? ` • ${order.paymentReference}` : ""}
+          </p>
+        )}
+        <div className="mt-4 rounded-2xl bg-surface px-3 py-3">
+          <div className="flex items-center justify-between gap-2">
+            {timeline.map((step, index) => (
+              <div key={step.status} className="flex flex-1 items-center gap-2">
+                <div className="flex flex-col items-center">
+                  <span
+                    className={`grid h-8 w-8 place-items-center rounded-full border text-[10px] font-bold transition-all ${
+                      step.active
+                        ? "animate-pulse-ring border-primary bg-primary text-primary-foreground shadow-fab"
+                        : step.done
+                          ? "border-primary/30 bg-primary-soft text-primary"
+                          : "border-border bg-paper text-muted-foreground"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="mt-2 text-[10px] font-semibold text-center leading-tight">
+                    {step.label}
+                  </span>
+                </div>
+                {index < timeline.length - 1 && (
+                  <span
+                    className={`h-1 flex-1 rounded-full transition-all ${
+                      step.done ? "animate-progress-glow bg-primary/70" : "bg-border"
+                    }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="mt-3 space-y-2">
           {order.statusHistory.map((event) => (
             <div key={event.id} className="flex items-start gap-3">
@@ -173,18 +224,31 @@ function OrderCard({
           : `Yetkazish manzili: ${order.customer.address ?? "-"}`}
       </p>
 
-      {canCancel && (
-        <button
-          onClick={async () => {
-            setBusyAction("cancel");
-            await onCancel();
-            setBusyAction("");
-          }}
-          className="tap mt-4 h-10 px-4 rounded-full bg-paper border border-border text-sm font-semibold active:scale-95 transition-transform inline-flex items-center gap-2"
-        >
-          <XCircle className="w-4 h-4 text-sale" strokeWidth={2.3} />
-          {busyAction === "cancel" ? "Yuborilmoqda..." : "Buyurtmani bekor qilish"}
-        </button>
+      {(canCancel || canRepeat) && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {canCancel && (
+            <button
+              onClick={async () => {
+                setBusyAction("cancel");
+                await onCancel();
+                setBusyAction("");
+              }}
+              className="tap h-10 px-4 rounded-full bg-paper border border-border text-sm font-semibold active:scale-95 transition-transform inline-flex items-center gap-2"
+            >
+              <XCircle className="w-4 h-4 text-sale" strokeWidth={2.3} />
+              {busyAction === "cancel" ? "Yuborilmoqda..." : "Buyurtmani bekor qilish"}
+            </button>
+          )}
+          {canRepeat && (
+            <button
+              onClick={onRepeat}
+              className="tap h-10 px-4 rounded-full bg-primary-soft text-primary text-sm font-semibold active:scale-95 transition-transform inline-flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" strokeWidth={2.2} />
+              Qayta buyurtma
+            </button>
+          )}
+        </div>
       )}
 
       {canReview && (
@@ -228,6 +292,27 @@ function OrderCard({
       )}
     </div>
   );
+}
+
+function getOrderTimeline(order: CustomerOrder) {
+  const steps = [
+    { status: "pending", label: "Qabul" },
+    { status: "confirmed", label: "Tasdiq" },
+    { status: "preparing", label: "Tayyorlash" },
+    { status: "ready", label: "Tayyor" },
+    {
+      status: "delivering",
+      label: order.customer.fulfillmentType === "pickup" ? "Pickup" : "Yo'lda",
+    },
+    { status: "completed", label: "Topshirildi" },
+  ] as const;
+
+  const currentIndex = steps.findIndex((step) => step.status === order.status);
+  return steps.map((step, index) => ({
+    ...step,
+    done: currentIndex >= index,
+    active: currentIndex === index,
+  }));
 }
 
 function OrderStat({

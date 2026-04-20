@@ -111,6 +111,9 @@ export interface CustomerOrder {
   customer: OrderCustomerSnapshot;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  paymentCardNumber?: string;
+  paymentReference?: string;
+  paymentConfirmedAt?: string;
   status: OrderStatus;
   statusHistory: OrderStatusEvent[];
   cancellationReason?: string;
@@ -124,6 +127,20 @@ export interface BroadcastMessage {
   createdAt: string;
 }
 
+export interface AdminSession {
+  token: string;
+  label: string;
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt: string;
+}
+
+export interface AdminAuthState {
+  loginCode?: string;
+  loginCodeExpiresAt?: string;
+  sessions: AdminSession[];
+}
+
 export interface AppDataState {
   products: ManagedProduct[];
   pickupPoints: PickupPoint[];
@@ -131,4 +148,5 @@ export interface AppDataState {
   orders: CustomerOrder[];
   reviews: Review[];
   broadcasts: BroadcastMessage[];
+  adminAuth: AdminAuthState;
 }

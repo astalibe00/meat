@@ -89,7 +89,8 @@ export function mainReplyKeyboard() {
       firstRow,
       [{ text: "Telefonni ulashish", request_contact: true }],
       [{ text: "Katalog" }, { text: "Aksiyalar" }],
-      [{ text: "Yetkazib berish" }, { text: "Yordam" }],
+      [{ text: "Buyurtmalarim" }, { text: "Yordam" }],
+      [{ text: "Yetkazib berish" }],
     ],
     resize_keyboard: true,
     is_persistent: true,
@@ -109,7 +110,10 @@ export function mainInlineKeyboard() {
         { text: "Aksiyalar", callback_data: "menu:deals" },
         { text: "Yetkazib berish", callback_data: "menu:delivery" },
       ],
-      [{ text: "Yordam", callback_data: "menu:support" }],
+      [
+        { text: "Buyurtmalarim", callback_data: "menu:orders" },
+        { text: "Yordam", callback_data: "menu:support" },
+      ],
     ],
   };
 }

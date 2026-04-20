@@ -15,9 +15,11 @@ import {
   mutateAppData,
   nextOrderId,
   nextStatusEventId,
+  readAppData,
   replaceOrder,
   upsertCustomer,
 } from "./_lib/app-data.js";
+import { requireAdminRequest } from "./_lib/admin-auth.js";
 import {
   getAdminChatIds,
   getChannelId,
@@ -36,6 +38,7 @@ interface ApiRequest {
     promoCode?: string;
     notes?: string;
     paymentMethod?: PaymentMethod;
+    paymentReference?: string;
     telegramUserId?: number;
     username?: string;
     firstName?: string;
@@ -55,6 +58,8 @@ interface ApiRequest {
       weightOption?: string;
     }>;
   };
+  headers?: Record<string, string | string[] | undefined>;
+  query?: Record<string, string | string[] | undefined>;
 }
 
 interface ApiResponse {
@@ -64,6 +69,7 @@ interface ApiResponse {
 
 const FREE_SHIPPING_THRESHOLD = 900000;
 const DELIVERY_FEE = 85000;
+const P2P_PAYMENT_CARD = "9860350140942508";
 
 function getRecipients() {
   return [...new Set([...getAdminChatIds(), getChannelId()].filter(Boolean))];
@@ -71,6 +77,15 @@ function getRecipients() {
 
 function formatMoney(value: number) {
   return `${new Intl.NumberFormat("uz-UZ").format(Math.round(value))} UZS`;
+}
+
+function getRequestedKg(line: Pick<OrderLine, "quantity" | "weightOption" | "product">) {
+  return Number(
+    (
+      line.quantity *
+      Number((line.weightOption ?? line.product.weight).match(/(\d+(?:\.\d+)?)/g)?.slice(-1)[0] ?? "1")
+    ).toFixed(2),
+  );
 }
 
 function createStatusEvent(status: OrderStatus, label: string, source: OrderStatusEvent["source"]) {
@@ -86,18 +101,18 @@ function createStatusEvent(status: OrderStatus, label: string, source: OrderStat
 function getStatusLabel(status: OrderStatus, order: CustomerOrder) {
   switch (status) {
     case "confirmed":
-      return "Admin buyurtmani tasdiqladi.";
-    case "preparing":
       return isOnlinePayment(order.paymentMethod)
-        ? "Online to'lov qabul qilindi, tayyorlash boshlandi."
-        : "Mahsulot tayyorlash boshlandi.";
+        ? "To'lov tekshirildi va buyurtma tasdiqlandi."
+        : "Buyurtma admin tomonidan tasdiqlandi.";
+    case "preparing":
+      return "Mahsulot tayyorlash boshlandi.";
     case "ready":
       return order.customer.fulfillmentType === "pickup"
         ? "Buyurtma tarqatish punktida tayyor."
         : "Buyurtma jo'natishga tayyor.";
     case "delivering":
       return order.customer.fulfillmentType === "pickup"
-        ? "Buyurtma pickup uchun kutilmoqda."
+        ? "Buyurtma pickup punktida kutilmoqda."
         : "Buyurtma yetkazib berilmoqda.";
     case "completed":
       return "Buyurtma muvaffaqiyatli topshirildi.";
@@ -105,7 +120,9 @@ function getStatusLabel(status: OrderStatus, order: CustomerOrder) {
       return "Buyurtma bekor qilindi.";
     case "pending":
     default:
-      return "Buyurtma admin tasdig'iga yuborildi.";
+      return isOnlinePayment(order.paymentMethod)
+        ? "P2P to'lov tekshiruvini kutmoqda."
+        : "Buyurtma admin tasdig'iga yuborildi.";
   }
 }
 
@@ -117,8 +134,11 @@ function summarizeOrder(order: CustomerOrder) {
     order.customer.fulfillmentType === "pickup"
       ? `Tarqatish punkti: ${order.customer.pickupPointId ?? "-"}`
       : `Manzil: ${order.customer.address ?? "-"}`,
-    `To'lov: ${order.paymentMethod.toUpperCase()}`,
     `Holat: ${ORDER_STATUS_LABELS[order.status]}`,
+    `To'lov turi: ${order.paymentMethod.toUpperCase()}`,
+    `To'lov holati: ${order.paymentStatus}`,
+    order.paymentReference ? `Tranzaksiya: ${order.paymentReference}` : "",
+    isOnlinePayment(order.paymentMethod) ? `P2P karta: ${order.paymentCardNumber ?? P2P_PAYMENT_CARD}` : "",
     "",
     "Mahsulotlar:",
     ...order.items.map(
@@ -135,6 +155,13 @@ function summarizeOrder(order: CustomerOrder) {
 function resolvePaymentStatus(status: OrderStatus, order: CustomerOrder): PaymentStatus {
   if (status === "cancelled") {
     return isOnlinePayment(order.paymentMethod) ? "refund-pending" : "cancelled";
+  }
+
+  if (
+    isOnlinePayment(order.paymentMethod) &&
+    (status === "confirmed" || status === "preparing" || status === "ready" || status === "delivering" || status === "completed")
+  ) {
+    return "paid";
   }
 
   if (status === "completed") {
@@ -174,8 +201,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         }
 
         for (const line of items) {
-          const requestedKg = Number((line.quantity * Number((line.weightOption ?? line.product.weight).match(/(\d+(?:\.\d+)?)/g)?.slice(-1)[0] ?? "1")).toFixed(2));
-          if (requestedKg > line.product.stockKg) {
+          if (getRequestedKg(line) > line.product.stockKg) {
             throw new Error(
               `${line.product.name} uchun omborda yetarli qoldiq yo'q. Katta buyurtmalar uchun +998990197548 raqamiga qo'ng'iroq qiling.`,
             );
@@ -194,35 +220,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               ? 0
               : DELIVERY_FEE;
         const paymentStatus = getInitialPaymentStatus(payload.paymentMethod);
-        const status: OrderStatus = isOnlinePayment(payload.paymentMethod) ? "preparing" : "pending";
-        const statusHistory = [createStatusEvent(status, getStatusLabel(status, {
-          id: "",
-          createdAt: "",
-          updatedAt: "",
-          items,
-          subtotal,
-          savings,
-          promoDiscount: 0,
-          delivery,
-          total: subtotal + delivery,
-          promoCode: payload.promoCode?.trim() ?? "",
-          customer: {
-            telegramUserId: payload.telegramUserId,
-            name: payload.customer?.name?.trim() || "Mijoz",
-            username: payload.username,
-            phone: payload.customer?.phone?.trim(),
-            address: payload.customer?.address?.trim(),
-            addressLabel: payload.customer?.addressLabel?.trim(),
-            coordinates: payload.customer?.coordinates,
-            pickupPointId: payload.customer?.pickupPointId?.trim(),
-            fulfillmentType: payload.customer?.fulfillmentType ?? "delivery",
-            notes: payload.notes?.trim(),
-          },
-          paymentMethod: payload.paymentMethod,
-          paymentStatus,
-          status,
-          statusHistory: [],
-        } as CustomerOrder), "system")];
+        const status: OrderStatus = "pending";
+
         const order: CustomerOrder = {
           id: nextOrderId(),
           createdAt: new Date().toISOString(),
@@ -248,9 +247,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           },
           paymentMethod: payload.paymentMethod,
           paymentStatus,
+          paymentCardNumber: isOnlinePayment(payload.paymentMethod) ? P2P_PAYMENT_CARD : undefined,
+          paymentReference: payload.paymentReference?.trim(),
           status,
-          statusHistory,
+          statusHistory: [],
         };
+
+        order.statusHistory = [
+          createStatusEvent(status, getStatusLabel(status, order), "system"),
+        ];
 
         return {
           ...state,
@@ -274,10 +279,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               return product;
             }
 
-            const requestedKg = Number((line.quantity * Number((line.weightOption ?? line.product.weight).match(/(\d+(?:\.\d+)?)/g)?.slice(-1)[0] ?? "1")).toFixed(2));
             return {
               ...product,
-              stockKg: Math.max(0, Number((product.stockKg - requestedKg).toFixed(2))),
+              stockKg: Math.max(0, Number((product.stockKg - getRequestedKg(line)).toFixed(2))),
             };
           }),
         };
@@ -296,7 +300,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       if (order.customer.telegramUserId) {
         await sendMessage(
           order.customer.telegramUserId,
-          `Buyurtmangiz qabul qilindi.\n\n${summarizeOrder(order)}`,
+          isOnlinePayment(order.paymentMethod)
+            ? `Buyurtmangiz yaratildi. P2P to'lovni ${P2P_PAYMENT_CARD} kartaga o'tkazing va admin tasdig'ini kuting.\n\n${summarizeOrder(order)}`
+            : `Buyurtmangiz yaratildi va admin tasdig'iga yuborildi.\n\n${summarizeOrder(order)}`,
           { reply_markup: mainInlineKeyboard() },
         );
       }
@@ -312,6 +318,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return;
       }
 
+      const isAdminAction = payload.action === "status";
+      if (isAdminAction) {
+        await requireAdminRequest(req);
+      }
+
       let updatedOrder: CustomerOrder | undefined;
       const nextState = await mutateAppData((state) => {
         const order = state.orders.find((item) => item.id === payload.orderId);
@@ -322,6 +333,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         let status = order.status;
         let paymentStatus = order.paymentStatus;
         let cancellationReason = order.cancellationReason;
+        let paymentConfirmedAt = order.paymentConfirmedAt;
 
         if (payload.action === "cancel") {
           status = "cancelled";
@@ -336,12 +348,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
           status = payload.status;
           paymentStatus = resolvePaymentStatus(status, order);
+          if (paymentStatus === "paid") {
+            paymentConfirmedAt = new Date().toISOString();
+          }
         }
 
         updatedOrder = {
           ...order,
           status,
           paymentStatus,
+          paymentConfirmedAt,
           cancellationReason,
           updatedAt: new Date().toISOString(),
           statusHistory: [
@@ -350,7 +366,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               status,
               payload.action === "cancel"
                 ? cancellationReason || getStatusLabel(status, order)
-                : getStatusLabel(status, order),
+                : getStatusLabel(status, { ...order, status, paymentStatus }),
               payload.action === "status" ? "admin" : "customer",
             ),
           ],
@@ -389,8 +405,26 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (req.method === "GET") {
-      res.status(200).json({ ok: true });
-      return;
+      const telegramUserId = Number(req.query?.telegramUserId ?? 0) || undefined;
+
+      try {
+        await requireAdminRequest(req);
+        const state = await readAppData();
+        res.status(200).json({ ok: true, orders: state.orders });
+        return;
+      } catch {
+        if (!telegramUserId) {
+          res.status(200).json({ ok: true, orders: [] });
+          return;
+        }
+
+        const state = await readAppData();
+        res.status(200).json({
+          ok: true,
+          orders: state.orders.filter((order) => order.customer.telegramUserId === telegramUserId),
+        });
+        return;
+      }
     }
 
     res.status(405).json({ ok: false, error: "Method not allowed" });

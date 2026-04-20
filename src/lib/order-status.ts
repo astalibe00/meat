@@ -32,11 +32,13 @@ export function isOnlinePayment(method: PaymentMethod) {
 }
 
 export function getInitialPaymentStatus(method: PaymentMethod): PaymentStatus {
-  return isOnlinePayment(method) ? "paid" : "pending";
+  void method;
+  return "pending";
 }
 
 export function getInitialOrderStatus(method: PaymentMethod): OrderStatus {
-  return isOnlinePayment(method) ? "preparing" : "pending";
+  void method;
+  return "pending";
 }
 
 export function getStatusDescription(status: OrderStatus) {

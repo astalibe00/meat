@@ -12,6 +12,7 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/app/EmptyState";
 import { ProductBadge } from "@/components/app/ProductBadge";
 import { ProductCard } from "@/components/app/ProductCard";
 import { QtyStepper } from "@/components/app/QtyStepper";
@@ -46,7 +47,23 @@ export function ProductDetailScreen() {
   const reviews = getProductReviews(productId);
 
   if (!product) {
-    return null;
+    return (
+      <div className="px-5 pt-6">
+        <EmptyState
+          icon={<MessageSquareQuote className="w-9 h-9" strokeWidth={1.75} />}
+          title="Mahsulot topilmadi"
+          body="Katalog qayta yuklanmoqda yoki mahsulot o'chirilgan."
+          action={
+            <button
+              onClick={back}
+              className="tap h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform"
+            >
+              Katalogga qaytish
+            </button>
+          }
+        />
+      </div>
+    );
   }
 
   const onSale = Boolean(product.oldPrice);
@@ -236,6 +253,9 @@ export function ProductDetailScreen() {
               </p>
               <p className="text-xs text-muted-foreground">
                 Maksimum {maxUnits} ta paket
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Katta buyurtma uchun +998990197548 raqamiga qo'ng'iroq qiling
               </p>
             </div>
             <QtyStepper value={quantity} onChange={setQuantity} min={1} max={Math.max(1, maxUnits)} size="lg" />

@@ -1,9 +1,11 @@
 import type { ManagedProduct } from "../src/types/app-data.js";
 import { attachReviewSummary, mutateAppData, nextBroadcastId, readAppData } from "./_lib/app-data.js";
+import { requireAdminRequest } from "./_lib/admin-auth.js";
 
 interface ApiRequest {
   method?: string;
   body?: Partial<ManagedProduct> & { id?: string };
+  headers?: Record<string, string | string[] | undefined>;
 }
 
 interface ApiResponse {
@@ -31,6 +33,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (req.method === "POST") {
+      await requireAdminRequest(req);
       const payload = req.body ?? {};
       const id = payload.id?.trim() || createProductId(payload.name);
       const nextState = await mutateAppData((state) => {
@@ -85,6 +88,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (req.method === "DELETE") {
+      await requireAdminRequest(req);
       const payload = req.body ?? {};
       if (!payload.id) {
         res.status(400).json({ ok: false, error: "Product id is required" });

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
+  Copy,
   CreditCard,
   MapPinned,
   Phone,
@@ -12,12 +13,12 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { formatCurrency } from "@/lib/format";
 import {
   PAYMENT_METHOD_LABELS,
-  getInitialOrderStatus,
   isOnlinePayment,
 } from "@/lib/order-status";
 import { useApp } from "@/store/useApp";
 
 const PAYMENT_OPTIONS = ["humo", "uzcard", "click", "payme", "paynet", "cash"] as const;
+const P2P_PAYMENT_CARD = "9860350140942508";
 
 export function CheckoutScreen() {
   const cart = useApp((state) => state.cart);
@@ -86,11 +87,10 @@ export function CheckoutScreen() {
       return;
     }
 
-    const orderStatus = getInitialOrderStatus(checkout.paymentMethod);
     toast.success(`Buyurtma ${result.order.id} yaratildi`, {
       description:
-        orderStatus === "preparing"
-          ? "Online to'lov qabul qilindi, tayyorlash boshlandi."
+        isOnlinePayment(checkout.paymentMethod)
+          ? "P2P to'lov tekshiruvga yuborildi. Admin tasdig'idan keyin tayyorlash boshlanadi."
           : "Buyurtma admin tasdig'iga yuborildi.",
     });
   };
@@ -224,10 +224,55 @@ export function CheckoutScreen() {
                 selected={checkout.paymentMethod === method}
                 title={PAYMENT_METHOD_LABELS[method]}
                 body={isOnlinePayment(method) ? "To'lovdan keyin tayyorlash boshlanadi" : "Buyurtma kelganda yoki terminal orqali"}
-                onClick={() => updateCheckout({ paymentMethod: method })}
+                onClick={() =>
+                  updateCheckout({
+                    paymentMethod: method,
+                    paymentReference: isOnlinePayment(method) ? checkout.paymentReference : "",
+                  })
+                }
               />
             ))}
           </div>
+
+          {isOnlinePayment(checkout.paymentMethod) && (
+            <div className="mt-4 rounded-2xl bg-paper p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">P2P karta raqami</p>
+                  <p className="mt-1 font-mono text-base tracking-[0.12em]">{P2P_PAYMENT_CARD}</p>
+                  <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                    Mijoz avval shu kartaga to'lov qiladi. Admin tranzaksiyani tekshirganidan keyin buyurtma tasdiqlanadi.
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(P2P_PAYMENT_CARD);
+                      toast.success("Karta raqami nusxalandi.");
+                    } catch {
+                      toast.error("Nusxalab bo'lmadi.");
+                    }
+                  }}
+                  className="tap h-10 px-4 rounded-full bg-surface border border-border text-sm font-semibold active:scale-95 transition-transform inline-flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" strokeWidth={2.2} />
+                  Nusxalash
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-2xl bg-surface px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Tranzaksiya izohi
+                </p>
+                <input
+                  value={checkout.paymentReference}
+                  onChange={(event) => updateCheckout({ paymentReference: event.target.value })}
+                  className="mt-2 w-full bg-transparent outline-none text-sm"
+                  placeholder="Chek ID, oxirgi 4 raqam yoki izoh"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl bg-surface p-4 shadow-card">

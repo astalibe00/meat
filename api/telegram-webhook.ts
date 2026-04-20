@@ -17,7 +17,7 @@ import {
   orderActionKeyboard,
   sendMessage,
 } from "./_lib/telegram.js";
-import { mutateAppData, replaceOrder, upsertCustomer } from "./_lib/app-data.js";
+import { mutateAppData, readAppData, replaceOrder, upsertCustomer } from "./_lib/app-data.js";
 import { ORDER_STATUS_LABELS } from "../src/lib/order-status.js";
 import type { CustomerOrder, OrderStatus } from "../src/types/app-data.js";
 
@@ -80,11 +80,78 @@ async function sendShop(chatId: number | string) {
   );
 }
 
-async function routeText(chatId: number | string, text: string) {
+async function sendCustomerOrders(chatId: number | string, telegramUserId?: number) {
+  if (!telegramUserId) {
+    await sendMessage(
+      chatId,
+      "Avval bot orqali Mini App yoki telefon ulashish bilan profilingizni oching.",
+      { reply_markup: mainInlineKeyboard() },
+    );
+    return;
+  }
+
+  const state = await readAppData();
+  const orders = state.orders
+    .filter((order) => order.customer.telegramUserId === telegramUserId)
+    .slice(0, 5);
+
+  if (orders.length === 0) {
+    await sendMessage(chatId, "Hozircha buyurtmalaringiz yo'q.", {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  await sendMessage(
+    chatId,
+    [
+      "So'nggi buyurtmalaringiz:",
+      "",
+      ...orders.map(
+        (order) =>
+          `${order.id} - ${ORDER_STATUS_LABELS[order.status]} - ${new Intl.NumberFormat("uz-UZ").format(Math.round(order.total))} UZS`,
+      ),
+      "",
+      "Aniq holat uchun /status BUYURTMA_ID yuboring.",
+    ].join("\n"),
+    { reply_markup: mainInlineKeyboard() },
+  );
+}
+
+async function sendSingleOrderStatus(chatId: number | string, orderId: string, telegramUserId?: number) {
+  const state = await readAppData();
+  const order = state.orders.find((item) => item.id.toLowerCase() === orderId.toLowerCase());
+  if (!order) {
+    await sendMessage(chatId, "Bu ID bo'yicha buyurtma topilmadi.", {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  const isAdmin = getAdminChatIds().includes(String(telegramUserId ?? ""));
+  if (!isAdmin && order.customer.telegramUserId && order.customer.telegramUserId !== telegramUserId) {
+    await sendMessage(chatId, "Bu buyurtma boshqa foydalanuvchiga tegishli.", {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  await sendMessage(
+    chatId,
+    `Buyurtma: ${order.id}\nHolat: ${ORDER_STATUS_LABELS[order.status]}\nTo'lov: ${order.paymentStatus}\nJami: ${new Intl.NumberFormat("uz-UZ").format(Math.round(order.total))} UZS`,
+    { reply_markup: mainInlineKeyboard() },
+  );
+}
+
+async function routeText(chatId: number | string, text: string, telegramUserId?: number) {
   const normalized = text.toLowerCase();
 
   if (normalized === "/start" || normalized === "/menu") {
     return sendWelcome(chatId);
+  }
+
+  if (normalized.startsWith("/status ")) {
+    return sendSingleOrderStatus(chatId, text.slice("/status ".length).trim(), telegramUserId);
   }
 
   if (normalized === "telefonni ulashish") {
@@ -117,6 +184,10 @@ async function routeText(chatId: number | string, text: string) {
     });
   }
 
+  if (normalized === "buyurtmalarim" || normalized === "/orders") {
+    return sendCustomerOrders(chatId, telegramUserId);
+  }
+
   if (normalized === "mini app" || normalized === "open web app") {
     const webAppUrl = getWebAppUrl();
     if (!webAppUrl) {
@@ -145,7 +216,7 @@ async function routeText(chatId: number | string, text: string) {
 
   return sendMessage(
     chatId,
-    "Mini App, Katalog, Aksiyalar, Yetkazib berish, Yordam yoki Telefonni ulashish tugmalaridan foydalaning.",
+    "Mini App, Katalog, Buyurtmalarim, Aksiyalar, Yetkazib berish, Yordam yoki Telefonni ulashish tugmalaridan foydalaning.",
     {
       reply_markup: mainReplyKeyboard(),
     },
@@ -228,6 +299,15 @@ async function handleOrderCallback(update: TelegramUpdate, orderId: string, stat
       paymentStatus:
         status === "completed"
           ? "paid"
+          : (order.paymentMethod === "click" ||
+              order.paymentMethod === "payme" ||
+              order.paymentMethod === "humo" ||
+              order.paymentMethod === "uzcard") &&
+            (status === "confirmed" ||
+              status === "preparing" ||
+              status === "ready" ||
+              status === "delivering")
+            ? "paid"
           : status === "cancelled"
             ? order.paymentMethod === "cash" || order.paymentMethod === "paynet"
               ? "cancelled"
@@ -318,6 +398,12 @@ async function routeCallback(update: TelegramUpdate) {
     return;
   }
 
+  if (data === "menu:orders") {
+    await answerCallbackQuery(callbackQuery.id, "Buyurtmalar");
+    await sendCustomerOrders(chatId, callbackQuery?.from?.id);
+    return;
+  }
+
   if (data.startsWith("category:")) {
     const categoryId = data.replace("category:", "");
     await answerCallbackQuery(callbackQuery.id, "Kategoriya yuklandi");
@@ -373,7 +459,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (chatId) {
-      await routeText(chatId, getText(update));
+      await routeText(chatId, getText(update), update?.message?.from?.id);
     }
 
     res.status(200).json({ ok: true });

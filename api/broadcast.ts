@@ -1,4 +1,5 @@
 import { getAdminChatIds, getChannelId, sendMessage } from "./_lib/telegram.js";
+import { requireAdminRequest } from "./_lib/admin-auth.js";
 import { mutateAppData, nextBroadcastId } from "./_lib/app-data.js";
 
 interface ApiRequest {
@@ -7,6 +8,7 @@ interface ApiRequest {
     title?: string;
     body?: string;
   };
+  headers?: Record<string, string | string[] | undefined>;
 }
 
 interface ApiResponse {
@@ -27,6 +29,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   try {
+    await requireAdminRequest(req);
     const title = req.body?.title?.trim() || "Fresh Halal yangiliklari";
     const body = req.body?.body?.trim();
 

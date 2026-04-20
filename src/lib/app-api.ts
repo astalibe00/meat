@@ -22,8 +22,26 @@ interface AppStateResponse {
   error?: string;
 }
 
-async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
+interface RequestOptions extends RequestInit {
+  adminToken?: string;
+}
+
+function withAdminHeaders(init?: RequestOptions) {
+  const headers = new Headers(init?.headers);
+  if (init?.adminToken) {
+    headers.set("authorization", `Bearer ${init.adminToken}`);
+  }
+
+  return headers;
+}
+
+async function requestJson<T>(input: RequestInfo | URL, init?: RequestOptions): Promise<T> {
+  const { adminToken, ...requestInit } = init ?? {};
+  void adminToken;
+  const response = await fetch(input, {
+    ...requestInit,
+    headers: withAdminHeaders(init),
+  });
   const payload = (await response.json().catch(() => null)) as T & { error?: string } | null;
 
   if (!response.ok) {
@@ -71,6 +89,7 @@ export function submitOrder(payload: {
   lastName?: string;
   notes?: string;
   paymentMethod: PaymentMethod;
+  paymentReference?: string;
   promoCode?: string;
   customer: {
     name: string;
@@ -110,9 +129,10 @@ export function cancelOrderRequest(orderId: string, reason?: string) {
   });
 }
 
-export function updateOrderStatusRequest(orderId: string, status: string) {
+export function updateOrderStatusRequest(orderId: string, status: string, adminToken?: string) {
   return requestJson<{ ok: boolean; order?: CustomerOrder }>(`/api/orders`, {
     method: "PATCH",
+    adminToken,
     headers: {
       "content-type": "application/json",
     },
@@ -143,9 +163,10 @@ export function submitReviewRequest(payload: {
   );
 }
 
-export function saveProduct(payload: Partial<ManagedProduct>) {
+export function saveProduct(payload: Partial<ManagedProduct>, adminToken?: string) {
   return requestJson<{ ok: boolean; products?: ManagedProduct[] }>(`/api/products`, {
     method: "POST",
+    adminToken,
     headers: {
       "content-type": "application/json",
     },
@@ -153,9 +174,10 @@ export function saveProduct(payload: Partial<ManagedProduct>) {
   });
 }
 
-export function deleteProduct(productId: string) {
+export function deleteProduct(productId: string, adminToken?: string) {
   return requestJson<{ ok: boolean; products?: ManagedProduct[] }>(`/api/products`, {
     method: "DELETE",
+    adminToken,
     headers: {
       "content-type": "application/json",
     },
@@ -163,12 +185,72 @@ export function deleteProduct(productId: string) {
   });
 }
 
-export function sendBroadcast(payload: { title: string; body: string }) {
+export function sendBroadcast(payload: { title: string; body: string }, adminToken?: string) {
   return requestJson<{ ok: boolean; sent?: number }>(`/api/broadcast`, {
     method: "POST",
+    adminToken,
     headers: {
       "content-type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+}
+
+export function requestAdminCode() {
+  return requestJson<{ ok: boolean; sent: number; expiresAt: string }>(`/api/admin-auth`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ action: "request" }),
+  });
+}
+
+export function verifyAdminCode(code: string, label?: string) {
+  return requestJson<{
+    ok: boolean;
+    token: string;
+    expiresAt: string;
+    session: {
+      token: string;
+      label: string;
+      expiresAt: string;
+    };
+  }>(`/api/admin-auth`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ action: "verify", code, label }),
+  });
+}
+
+export function validateAdminToken(adminToken: string) {
+  return requestJson<{ ok: boolean; authenticated: boolean }>(`/api/admin-auth`, {
+    adminToken,
+  });
+}
+
+export function fetchAdminState(adminToken: string) {
+  return requestJson<{
+    ok: boolean;
+    orders: CustomerOrder[];
+    products: ManagedProduct[];
+    customers: CustomerProfile[];
+    reviews: Review[];
+    broadcasts: Array<{ id: string; title: string; body: string; createdAt: string }>;
+    pickupPoints: PickupPoint[];
+    analytics: {
+      ordersTotal: number;
+      pendingOrders: number;
+      cancelledOrders: number;
+      customersTotal: number;
+      paidRevenue: number;
+      pendingRevenue: number;
+      averageOrderValue: number;
+      lowStockCount: number;
+    };
+  }>(`/api/admin-state`, {
+    adminToken,
   });
 }
