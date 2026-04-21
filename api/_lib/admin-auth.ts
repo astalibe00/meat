@@ -14,6 +14,15 @@ function createToken() {
   return `admin_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
 }
 
+function getDefaultAdminRole() {
+  const role = process.env.ADMIN_DEFAULT_ROLE?.trim().toLowerCase();
+  if (role === "manager" || role === "support" || role === "owner") {
+    return role;
+  }
+
+  return "owner";
+}
+
 function getHeaderValue(
   headers: Record<string, string | string[] | undefined>,
   name: string,
@@ -118,6 +127,7 @@ export async function verifyAdminLoginCode(code: string, label = "Admin panel") 
     createdSession = {
       token: createToken(),
       label: label.trim() || "Admin panel",
+      role: getDefaultAdminRole(),
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       lastUsedAt: new Date().toISOString(),

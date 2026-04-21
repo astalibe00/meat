@@ -3,7 +3,10 @@ import {
   buildCategoryMessage,
   buildDealsMessage,
   buildDeliveryMessage,
+  buildHelpMessage,
+  buildSearchResultsMessage,
   buildSupportMessage,
+  buildTopProductsMessage,
   buildWelcomeMessage,
 } from "./_lib/catalog.js";
 import {
@@ -184,8 +187,30 @@ async function routeText(chatId: number | string, text: string, telegramUserId?:
     });
   }
 
+  if (normalized === "/help" || normalized === "help" || normalized === "qidiruv yordam") {
+    return sendMessage(chatId, buildHelpMessage(), {
+      reply_markup: mainInlineKeyboard(),
+    });
+  }
+
+  if (normalized === "/top" || normalized === "top mahsulotlar") {
+    const state = await readAppData();
+    return sendMessage(chatId, buildTopProductsMessage(state.products, state.orders), {
+      reply_markup: mainInlineKeyboard(),
+    });
+  }
+
   if (normalized === "buyurtmalarim" || normalized === "/orders") {
     return sendCustomerOrders(chatId, telegramUserId);
+  }
+
+  if (normalized.startsWith("/search ")) {
+    const state = await readAppData();
+    return sendMessage(
+      chatId,
+      buildSearchResultsMessage(state.products, text.slice("/search ".length).trim()),
+      { reply_markup: mainInlineKeyboard() },
+    );
   }
 
   if (normalized === "mini app" || normalized === "open web app") {
@@ -393,6 +418,23 @@ async function routeCallback(update: TelegramUpdate) {
   if (data === "menu:support") {
     await answerCallbackQuery(callbackQuery.id, "Support");
     await sendMessage(chatId, buildSupportMessage(), {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  if (data === "menu:help") {
+    await answerCallbackQuery(callbackQuery.id, "Yordam");
+    await sendMessage(chatId, buildHelpMessage(), {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  if (data === "menu:top") {
+    await answerCallbackQuery(callbackQuery.id, "Top mahsulotlar");
+    const state = await readAppData();
+    await sendMessage(chatId, buildTopProductsMessage(state.products, state.orders), {
       reply_markup: mainInlineKeyboard(),
     });
     return;

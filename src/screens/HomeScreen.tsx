@@ -8,6 +8,7 @@ import {
   Sparkles,
   Truck,
 } from "lucide-react";
+import { useMemo } from "react";
 import { useApp } from "@/store/useApp";
 import {
   CATEGORIES,
@@ -15,6 +16,7 @@ import {
 } from "@/data/products";
 import { ProductCard } from "@/components/app/ProductCard";
 import { SectionHeader } from "@/components/app/SectionHeader";
+import { getPersonalizedProducts } from "@/lib/catalog-intelligence";
 import { formatCurrency } from "@/lib/format";
 import banner1 from "@/assets/banners/banner-1.jpg";
 import banner2 from "@/assets/banners/banner-2.jpg";
@@ -60,9 +62,15 @@ const TRUST_PILLS = [
 export function HomeScreen() {
   const navigate = useApp((state) => state.navigate);
   const products = useApp((state) => state.products);
+  const favorites = useApp((state) => state.favorites);
+  const orders = useApp((state) => state.orders);
   const popular = products.filter((product) => product.tags.includes("Popular"));
   const sale = products.filter((product) => Boolean(product.oldPrice));
   const fresh = products.filter((product) => product.tags.includes("Fresh"));
+  const forYou = useMemo(
+    () => getPersonalizedProducts(products, favorites, orders, 4),
+    [favorites, orders, products],
+  );
 
   return (
     <div className="animate-screen-in pb-6">
@@ -176,6 +184,17 @@ export function HomeScreen() {
           </div>
         </div>
       </div>
+
+      {forYou.length > 0 && (
+        <div className="mt-7 px-5">
+          <SectionHeader eyebrow="Siz uchun" title="Shaxsiy tavsiyalar" inline />
+          <div className="grid grid-cols-2 gap-3 mt-1">
+            {forYou.map((product) => (
+              <ProductCard key={product.id} product={product} variant="grid" />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-7">
         <SectionHeader

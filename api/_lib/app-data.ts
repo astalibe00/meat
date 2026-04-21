@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type {
   AdminAuthState,
+  AuditLogEntry,
   AppDataState,
   CustomerOrder,
   CustomerProfile,
@@ -300,6 +301,10 @@ function getDefaultAdminAuth(): AdminAuthState {
   };
 }
 
+function getDefaultAuditLog(): AuditLogEntry[] {
+  return [];
+}
+
 export function getDefaultAppData(): AppDataState {
   return {
     products: DEFAULT_PRODUCTS.map(withDefaults),
@@ -308,6 +313,7 @@ export function getDefaultAppData(): AppDataState {
     orders: [],
     reviews: [],
     broadcasts: [],
+    auditLog: getDefaultAuditLog(),
     adminAuth: getDefaultAdminAuth(),
   };
 }
@@ -395,13 +401,20 @@ export function normalizeAppData(state?: Partial<AppDataState>): AppDataState {
     customers: state?.customers ?? [],
     orders: state?.orders ?? [],
     reviews: state?.reviews ?? [],
-    broadcasts: state?.broadcasts ?? [],
+    broadcasts: (state?.broadcasts ?? []).map((message) => ({
+      ...message,
+      audience: message.audience ?? "all",
+    })),
+    auditLog: state?.auditLog ?? [],
     adminAuth: {
       loginCode: state?.adminAuth?.loginCode,
       loginCodeExpiresAt: state?.adminAuth?.loginCodeExpiresAt,
       sessions: (state?.adminAuth?.sessions ?? []).filter((session) => {
         return Date.parse(session.expiresAt) > Date.now();
-      }),
+      }).map((session) => ({
+        ...session,
+        role: session.role ?? "owner",
+      })),
     },
   };
 }
@@ -465,6 +478,24 @@ export function nextStatusEventId() {
 
 export function nextBroadcastId() {
   return createId("broadcast");
+}
+
+export function nextAuditId() {
+  return createId("audit");
+}
+
+export function appendAuditLog(
+  auditLog: AuditLogEntry[],
+  entry: Omit<AuditLogEntry, "id" | "createdAt">,
+) {
+  return [
+    {
+      id: nextAuditId(),
+      createdAt: new Date().toISOString(),
+      ...entry,
+    },
+    ...auditLog,
+  ].slice(0, 250);
 }
 
 export function replaceOrder(orders: CustomerOrder[], order: CustomerOrder) {

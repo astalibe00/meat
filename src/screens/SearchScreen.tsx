@@ -3,6 +3,7 @@ import { Clock, Search, SearchX, TrendingUp, X } from "lucide-react";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ProductCard } from "@/components/app/ProductCard";
 import { CATEGORIES } from "@/data/products";
+import { getPersonalizedProducts, getSearchSuggestions, searchProducts } from "@/lib/catalog-intelligence";
 import { useApp } from "@/store/useApp";
 
 const POPULAR_QUERIES = [
@@ -20,29 +21,31 @@ export function SearchScreen() {
   const clearRecentSearches = useApp((state) => state.clearRecentSearches);
   const navigate = useApp((state) => state.navigate);
   const rawProducts = useApp((state) => state.products);
+  const favorites = useApp((state) => state.favorites);
+  const orders = useApp((state) => state.orders);
   const [query, setQuery] = useState("");
   const products = useMemo(
     () => rawProducts.filter((product) => product.enabled !== false),
     [rawProducts],
   );
-  const featured = useMemo(() => products.slice(0, 6), [products]);
+  const featured = useMemo(() => {
+    const personalized = getPersonalizedProducts(products, favorites, orders, 6);
+    return personalized.length > 0 ? personalized : products.slice(0, 6);
+  }, [favorites, orders, products]);
+  const hasPersonalizedFeatured = useMemo(
+    () => getPersonalizedProducts(products, favorites, orders, 1).length > 0,
+    [favorites, orders, products],
+  );
 
   const results = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) {
+    if (!query.trim()) {
       return [];
     }
 
-    return products.filter(
-      (product) =>
-        (product.name ?? "").toLowerCase().includes(term) ||
-        (Array.isArray(product.tags) ? product.tags : []).some((tag) =>
-          String(tag).toLowerCase().includes(term),
-        ) ||
-        String(product.category ?? "").includes(term) ||
-        (product.description ?? "").toLowerCase().includes(term),
-    );
+    return searchProducts(products, query);
   }, [products, query]);
+
+  const suggestions = useMemo(() => getSearchSuggestions(products, query), [products, query]);
 
   const onSubmit = () => {
     if (query.trim()) {
@@ -150,7 +153,7 @@ export function SearchScreen() {
 
           <section>
             <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2.5">
-              Tavsiya etilgan mahsulotlar
+              {featured.length && hasPersonalizedFeatured ? "Siz uchun tavsiyalar" : "Tavsiya etilgan mahsulotlar"}
             </h2>
             <div className="grid grid-cols-2 gap-3">
               {featured.map((product) => (
@@ -163,6 +166,19 @@ export function SearchScreen() {
 
       {query && (
         <div className="mt-5">
+          {suggestions.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => setQuery(suggestion)}
+                  className="tap rounded-full bg-primary-soft px-3 py-2 text-[11px] font-semibold text-primary-soft-foreground active:scale-95 transition-transform"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mb-3">
             <span className="font-bold tabular-nums text-foreground">{results.length}</span>{" "}
             ta natija{" "}

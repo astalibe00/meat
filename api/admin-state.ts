@@ -1,5 +1,11 @@
 import { requireAdminRequest } from "./_lib/admin-auth.js";
 import { attachReviewSummary, readAppData } from "./_lib/app-data.js";
+import {
+  buildCustomerInsights,
+  groupOrdersByStatus,
+  latestAuditEntries,
+  summarizeLowStockProducts,
+} from "../src/lib/customer-intelligence.js";
 
 interface ApiRequest {
   method?: string;
@@ -34,7 +40,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         .filter((order) => order.paymentStatus === "pending")
         .map((order) => order.total),
     );
-    const lowStockProducts = products.filter((product) => product.stockKg <= 3);
+    const lowStockProducts = summarizeLowStockProducts(products);
+    const customerInsights = buildCustomerInsights(state.customers, state.orders);
+    const orderBuckets = groupOrdersByStatus(state.orders);
 
     res.status(200).json({
       ok: true,
@@ -42,8 +50,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       orders: state.orders,
       products,
       customers: state.customers,
+      customerInsights,
       reviews: state.reviews,
       broadcasts: state.broadcasts,
+      lowStockProducts,
+      orderBuckets,
+      auditLog: latestAuditEntries(state.auditLog),
       pickupPoints: state.pickupPoints,
       analytics: {
         ordersTotal: state.orders.length,

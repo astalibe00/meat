@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   BarChart3,
   BellRing,
   CreditCard,
+  History,
   ImagePlus,
   KeyRound,
   LayoutDashboard,
@@ -14,6 +16,7 @@ import {
   Trash2,
   Truck,
   UserRound,
+  Users,
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,7 +32,7 @@ import {
 } from "@/lib/app-api";
 import { formatCurrency, formatDate, formatTime } from "@/lib/format";
 import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/order-status";
-import type { CustomerProfile, ManagedProduct, OrderStatus } from "@/types/app-data";
+import type { BroadcastAudience, ManagedProduct, OrderStatus } from "@/types/app-data";
 
 const ADMIN_TOKEN_KEY = "fresh-halal-admin-token";
 
@@ -42,6 +45,14 @@ const STATUS_OPTIONS: OrderStatus[] = [
   "completed",
   "cancelled",
 ];
+
+const AUDIENCE_LABELS: Record<BroadcastAudience, string> = {
+  all: "Barcha mijozlar",
+  new: "Yangi mijozlar",
+  active: "Faol mijozlar",
+  vip: "VIP mijozlar",
+  "at-risk": "Qayta jalb qilinadiganlar",
+};
 
 type AdminStateResponse = Awaited<ReturnType<typeof fetchAdminState>>;
 
@@ -68,7 +79,15 @@ export default function AdminPage() {
   const [verifyCode, setVerifyCode] = useState("");
   const [adminState, setAdminState] = useState<AdminStateResponse | null>(null);
   const [draft, setDraft] = useState<Partial<ManagedProduct>>(EMPTY_PRODUCT);
-  const [broadcast, setBroadcast] = useState({ title: "Aksiya", body: "" });
+  const [broadcast, setBroadcast] = useState<{
+    title: string;
+    body: string;
+    audience: BroadcastAudience;
+  }>({
+    title: "Aksiya",
+    body: "",
+    audience: "all",
+  });
   const [loading, setLoading] = useState(false);
   const [requestingCode, setRequestingCode] = useState(false);
   const [verifyingCode, setVerifyingCode] = useState(false);
@@ -253,7 +272,7 @@ export default function AdminPage() {
     try {
       await sendBroadcast(broadcast, adminToken);
       toast.success("Reklama xabari yuborildi.");
-      setBroadcast({ title: "Aksiya", body: "" });
+      setBroadcast({ title: "Aksiya", body: "", audience: "all" });
       await loadAdminState(adminToken);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Xabar yuborilmadi.");
@@ -276,10 +295,10 @@ export default function AdminPage() {
     reader.readAsDataURL(file);
   }
 
-  const topCustomers = useMemo(() => {
-    const customers = adminState?.customers ?? [];
-    return [...customers].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).slice(0, 12);
-  }, [adminState?.customers]);
+  const topCustomers = useMemo(
+    () => adminState?.customerInsights.slice(0, 12) ?? [],
+    [adminState?.customerInsights],
+  );
 
   if (!adminToken || !adminState) {
     return (
@@ -338,6 +357,10 @@ export default function AdminPage() {
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Admin Panel</p>
             <h1 className="font-serif text-3xl font-semibold tracking-tight">Dashboard va boshqaruv</h1>
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">
+              <ShieldCheck className="h-3.5 w-3.5" strokeWidth={2.2} />
+              Sessiya: {adminState.session.label} • {adminState.session.role}
+            </div>
           </div>
           <div className="flex gap-2">
             <button
@@ -385,6 +408,40 @@ export default function AdminPage() {
             </section>
           ))}
         </div>
+
+        <section className="mt-6 rounded-3xl bg-surface p-5 shadow-card">
+          <div className="flex items-center gap-2">
+            <Truck className="h-5 w-5 text-primary" strokeWidth={2.2} />
+            <h2 className="font-serif text-2xl font-semibold">Buyurtmalar kanban'i</h2>
+          </div>
+          <div className="mt-4 grid gap-3 xl:grid-cols-4">
+            {Object.entries(adminState.orderBuckets).map(([status, orders]) => (
+              <div key={status} className="rounded-2xl bg-paper p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold">{ORDER_STATUS_LABELS[status as OrderStatus]}</p>
+                  <span className="rounded-full bg-primary-soft px-2 py-1 text-[11px] font-semibold text-primary">
+                    {orders.length}
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {orders.slice(0, 4).map((order) => (
+                    <div key={order.id} className="rounded-2xl border border-border/60 bg-surface px-3 py-2">
+                      <p className="text-xs font-semibold">{order.id}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground line-clamp-1">
+                        {order.customer.name} • {formatCurrency(order.total)}
+                      </p>
+                    </div>
+                  ))}
+                  {orders.length === 0 && (
+                    <p className="rounded-2xl border border-dashed border-border/60 px-3 py-4 text-center text-xs text-muted-foreground">
+                      Buyurtma yo'q
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-6">
@@ -628,10 +685,53 @@ export default function AdminPage() {
 
             <section className="rounded-3xl bg-surface p-5 shadow-card">
               <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-primary" strokeWidth={2.2} />
+                <h2 className="font-serif text-2xl font-semibold">Stock alert</h2>
+              </div>
+              <div className="mt-4 space-y-2">
+                {adminState.lowStockProducts.slice(0, 8).map((product) => (
+                  <div key={product.id} className="rounded-2xl bg-paper px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold line-clamp-1">{product.name}</p>
+                      <span className="rounded-full bg-sale/10 px-2 py-1 text-[11px] font-semibold text-sale">
+                        {product.stockKg} kg
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Minimal buyurtma {product.minOrderKg} kg • {formatCurrency(product.price)}
+                    </p>
+                  </div>
+                ))}
+                {adminState.lowStockProducts.length === 0 && (
+                  <p className="rounded-2xl border border-dashed border-border/60 px-4 py-5 text-center text-sm text-muted-foreground">
+                    Kam qolgan mahsulotlar yo'q.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-3xl bg-surface p-5 shadow-card">
+              <div className="flex items-center gap-2">
                 <BellRing className="h-5 w-5 text-primary" strokeWidth={2.2} />
                 <h2 className="font-serif text-2xl font-semibold">Broadcast va reklama</h2>
               </div>
               <div className="mt-4 grid gap-3">
+                <select
+                  value={broadcast.audience}
+                  onChange={(event) =>
+                    setBroadcast((state) => ({
+                      ...state,
+                      audience: event.target.value as BroadcastAudience,
+                    }))
+                  }
+                  className="rounded-2xl border border-border bg-paper px-4 py-3 text-sm outline-none"
+                >
+                  {Object.entries(AUDIENCE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
                 <input
                   value={broadcast.title}
                   onChange={(event) => setBroadcast((state) => ({ ...state, title: event.target.value }))}
@@ -649,23 +749,40 @@ export default function AdminPage() {
                   disabled={!broadcast.body.trim()}
                   className="tap h-11 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform disabled:opacity-60"
                 >
-                  Xabar yuborish
+                  {AUDIENCE_LABELS[broadcast.audience]} ga yuborish
                 </button>
               </div>
             </section>
 
             <section className="rounded-3xl bg-surface p-5 shadow-card">
               <div className="flex items-center gap-2">
-                <UserRound className="h-5 w-5 text-primary" strokeWidth={2.2} />
-                <h2 className="font-serif text-2xl font-semibold">Mijozlar</h2>
+                <Users className="h-5 w-5 text-primary" strokeWidth={2.2} />
+                <h2 className="font-serif text-2xl font-semibold">Mijozlar insight'i</h2>
               </div>
               <div className="mt-4 space-y-2">
-                {topCustomers.map((customer: CustomerProfile) => (
-                  <div key={customer.telegramUserId} className="rounded-2xl bg-paper px-4 py-3">
-                    <p className="text-sm font-semibold">{customer.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{customer.phone || "Telefon yo'q"}</p>
+                {topCustomers.map((entry) => (
+                  <div key={entry.customer.telegramUserId} className="rounded-2xl bg-paper px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">{entry.customer.name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {entry.customer.phone || "Telefon yo'q"}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-primary-soft px-2 py-1 text-[11px] font-semibold text-primary">
+                        {entry.segment}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                      <CustomerMetric label="Buyurtma" value={String(entry.totalOrders)} />
+                      <CustomerMetric label="Tushum" value={formatCurrency(entry.totalSpent)} />
+                      <CustomerMetric label="O'rtacha" value={formatCurrency(entry.averageOrderValue)} />
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground line-clamp-1">
+                      Oxirgi xarid: {entry.lastOrderAt ? `${formatDate(entry.lastOrderAt)} ${formatTime(entry.lastOrderAt)}` : "hali yo'q"}
+                    </p>
                     <p className="mt-1 text-[11px] text-muted-foreground line-clamp-1">
-                      {customer.address || customer.pickupPointId || "Manzil yo'q"}
+                      Sevimli kategoriya: {entry.favoriteCategory ?? "aniqlanmagan"}
                     </p>
                   </div>
                 ))}
@@ -682,8 +799,39 @@ export default function AdminPage() {
                   <div key={message.id} className="rounded-2xl bg-paper px-4 py-3">
                     <p className="text-sm font-semibold">{message.title}</p>
                     <p className="mt-1 text-xs text-muted-foreground line-clamp-3">{message.body}</p>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
+                    <p className="mt-2 text-[11px] text-primary">
+                      Auditoriya: {AUDIENCE_LABELS[message.audience]} • {message.sentCount ?? 0} qabul qiluvchi
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
                       {formatDate(message.createdAt)} {formatTime(message.createdAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-3xl bg-surface p-5 shadow-card">
+              <div className="flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" strokeWidth={2.2} />
+                <h2 className="font-serif text-2xl font-semibold">Audit log</h2>
+              </div>
+              <div className="mt-4 space-y-2">
+                {adminState.auditLog.map((entry) => (
+                  <div key={entry.id} className="rounded-2xl bg-paper px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">{entry.summary}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {entry.action} • {entry.entityType}
+                          {entry.entityId ? ` • ${entry.entityId}` : ""}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-primary-soft px-2 py-1 text-[11px] font-semibold text-primary">
+                        {entry.actor}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {formatDate(entry.createdAt)} {formatTime(entry.createdAt)}
                     </p>
                   </div>
                 ))}
@@ -701,6 +849,15 @@ function FinanceRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-3 rounded-2xl bg-paper px-4 py-3">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="text-sm font-semibold">{value}</span>
+    </div>
+  );
+}
+
+function CustomerMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-surface px-3 py-2 text-center">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-[11px] font-semibold">{value}</p>
     </div>
   );
 }

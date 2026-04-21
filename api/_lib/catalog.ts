@@ -1,3 +1,6 @@
+import { searchProducts } from "../../src/lib/catalog-intelligence.js";
+import type { CustomerOrder, ManagedProduct } from "../../src/types/app-data.js";
+
 export interface BotCategory {
   id: string;
   title: string;
@@ -113,5 +116,68 @@ export function buildWelcomeMessage(webAppAvailable: boolean) {
     webAppAvailable
       ? "Mini App eng tez rasmiylashtirish yo'lini ochadi."
       : "Mini App tugmasi deploy URL sozlangach ishlaydi.",
+  ].join("\n");
+}
+
+export function buildHelpMessage() {
+  return [
+    "Bot buyruqlari",
+    "",
+    "/menu - asosiy menyu",
+    "/shop - katalog bo'limlari",
+    "/orders - buyurtmalarim",
+    "/status BUYURTMA_ID - aniq buyurtma holati",
+    "/search so'rov - mahsulot qidirish",
+    "/top - eng ko'p so'ralayotgan mahsulotlar",
+    "/support - support kontaktlari",
+    "",
+    "To'liq checkout va tez rasmiylashtirish uchun Mini App tugmasidan foydalaning.",
+  ].join("\n");
+}
+
+export function buildSearchResultsMessage(products: ManagedProduct[], query: string) {
+  const results = searchProducts(products, query).slice(0, 5);
+  if (results.length === 0) {
+    return `"${query}" bo'yicha mos mahsulot topilmadi. Qisqaroq so'rov yoki kategoriya nomini yuboring.`;
+  }
+
+  return [
+    `Qidiruv: ${query}`,
+    "",
+    ...results.map(
+      (product, index) =>
+        `${index + 1}. ${product.name} - ${new Intl.NumberFormat("uz-UZ").format(product.price)} UZS / ${product.weight}`,
+    ),
+    "",
+    "To'liq tafsilot va buyurtma uchun Mini Appni oching.",
+  ].join("\n");
+}
+
+export function buildTopProductsMessage(products: ManagedProduct[], orders: CustomerOrder[]) {
+  const orderWeights = new Map<string, number>();
+
+  for (const order of orders) {
+    for (const line of order.items) {
+      orderWeights.set(line.product.id, (orderWeights.get(line.product.id) ?? 0) + line.quantity);
+    }
+  }
+
+  const ranked = [...products]
+    .map((product) => ({
+      product,
+      score: (orderWeights.get(product.id) ?? 0) + ((product.tags ?? []).includes("Popular") ? 2 : 0),
+    }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 5);
+
+  return [
+    "Top mahsulotlar",
+    "",
+    ...ranked.map(
+      (entry, index) =>
+        `${index + 1}. ${entry.product.name} - ${new Intl.NumberFormat("uz-UZ").format(entry.product.price)} UZS / ${entry.product.weight}`,
+    ),
+    "",
+    "Katalog va checkout uchun Mini Appni oching.",
   ].join("\n");
 }

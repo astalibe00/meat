@@ -1,12 +1,15 @@
 import { getAdminChatIds, getChannelId, sendMessage } from "./_lib/telegram.js";
 import { requireAdminRequest } from "./_lib/admin-auth.js";
-import { mutateAppData, nextBroadcastId } from "./_lib/app-data.js";
+import { appendAuditLog, mutateAppData, nextBroadcastId } from "./_lib/app-data.js";
+import { buildCustomerInsights, filterAudienceInsights } from "../src/lib/customer-intelligence.js";
+import type { BroadcastAudience } from "../src/types/app-data.js";
 
 interface ApiRequest {
   method?: string;
   body?: {
     title?: string;
     body?: string;
+    audience?: BroadcastAudience;
   };
   headers?: Record<string, string | string[] | undefined>;
 }
@@ -32,27 +35,49 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     await requireAdminRequest(req);
     const title = req.body?.title?.trim() || "Fresh Halal yangiliklari";
     const body = req.body?.body?.trim();
+    const audience = req.body?.audience ?? "all";
 
     if (!body) {
       res.status(400).json({ ok: false, error: "Message body is required" });
       return;
     }
 
-    const nextState = await mutateAppData((state) => ({
-      ...state,
-      broadcasts: [
-        {
-          id: nextBroadcastId(),
-          title,
-          body,
-          createdAt: new Date().toISOString(),
-        },
-        ...state.broadcasts,
-      ].slice(0, 50),
-    }));
+    const nextState = await mutateAppData((state) => {
+      const customerInsights = buildCustomerInsights(state.customers, state.orders);
+      const targetedCustomers = filterAudienceInsights(customerInsights, audience);
+      const recipients = getRecipients(
+        targetedCustomers.map((entry) => entry.customer.telegramUserId).filter(Boolean) as number[],
+      );
 
+      return {
+        ...state,
+        broadcasts: [
+          {
+            id: nextBroadcastId(),
+            title,
+            body,
+            createdAt: new Date().toISOString(),
+            audience,
+            sentCount: recipients.length,
+          },
+          ...state.broadcasts,
+        ].slice(0, 50),
+        auditLog: appendAuditLog(state.auditLog, {
+          actor: "admin-panel",
+          action: "broadcast.sent",
+          actorRole: "owner",
+          entityType: "broadcast",
+          summary: `${audience} segmentiga "${title}" xabari yuborildi.`,
+        }),
+      };
+    });
+
+    const latestBroadcast = nextState.broadcasts[0];
+    const customerInsights = buildCustomerInsights(nextState.customers, nextState.orders);
     const recipients = getRecipients(
-      nextState.customers.map((item) => item.telegramUserId).filter(Boolean) as number[],
+      filterAudienceInsights(customerInsights, audience)
+        .map((entry) => entry.customer.telegramUserId)
+        .filter(Boolean) as number[],
     );
 
     await Promise.all(
@@ -61,7 +86,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       ),
     );
 
-    res.status(200).json({ ok: true, sent: recipients.length });
+    res.status(200).json({ ok: true, sent: recipients.length, broadcast: latestBroadcast });
   } catch (error) {
     console.error("[broadcast] failed", error);
     res.status(500).json({

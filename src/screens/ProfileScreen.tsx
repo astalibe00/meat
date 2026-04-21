@@ -10,6 +10,8 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getCustomerSegment } from "@/lib/customer-intelligence";
+import { formatCurrency } from "@/lib/format";
 import { useApp } from "@/store/useApp";
 
 export function ProfileScreen() {
@@ -20,6 +22,9 @@ export function ProfileScreen() {
   const supportContact = useApp((state) => state.supportContact);
   const cartCount = useApp((state) => state.cartCount());
   const resetDemoData = useApp((state) => state.resetDemoData);
+  const paidOrders = orders.filter((order) => order.paymentStatus === "paid");
+  const totalSpent = paidOrders.reduce((sum, order) => sum + order.total, 0);
+  const segment = getCustomerSegment(orders.length, totalSpent, orders[0]?.createdAt);
 
   const initials = checkout.name
     .split(" ")
@@ -126,6 +131,16 @@ export function ProfileScreen() {
         </div>
         <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
           Buyurtmalarda saqlangan kontakt va manzil ma'lumotlari ishlatiladi. Ularni alohida profil bo'limida yangilaysiz.
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-border bg-paper p-4">
+        <p className="text-sm font-semibold">Sodiqlik holati</p>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Segment: <span className="font-semibold text-foreground">{segment}</span>
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          To'langan buyurtmalar: {paidOrders.length} • Jami xarid: {formatCurrency(totalSpent)}
         </p>
       </div>
 

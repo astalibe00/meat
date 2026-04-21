@@ -12,6 +12,7 @@ import type {
   PaymentStatus,
 } from "../src/types/app-data.js";
 import {
+  appendAuditLog,
   mutateAppData,
   nextOrderId,
   nextStatusEventId,
@@ -284,6 +285,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               stockKg: Math.max(0, Number((product.stockKg - getRequestedKg(line)).toFixed(2))),
             };
           }),
+          auditLog: appendAuditLog(state.auditLog, {
+            actor: payload.telegramUserId ? `telegram:${payload.telegramUserId}` : "customer",
+            action: "order.created",
+            entityType: "order",
+            entityId: order.id,
+            summary: `${order.id} buyurtmasi yaratildi. Jami: ${formatMoney(order.total)}.`,
+          }),
         };
       });
 
@@ -375,6 +383,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return {
           ...state,
           orders: replaceOrder(state.orders, updatedOrder),
+          auditLog: appendAuditLog(state.auditLog, {
+            actor:
+              payload.action === "status"
+                ? "admin-panel"
+                : updatedOrder.customer.telegramUserId
+                  ? `telegram:${updatedOrder.customer.telegramUserId}`
+                  : "customer",
+            actorRole: payload.action === "status" ? "owner" : undefined,
+            action: payload.action === "status" ? "order.status-updated" : "order.cancelled",
+            entityType: "order",
+            entityId: updatedOrder.id,
+            summary:
+              payload.action === "status"
+                ? `${updatedOrder.id} holati ${ORDER_STATUS_LABELS[updatedOrder.status]} ga o'tkazildi.`
+                : `${updatedOrder.id} buyurtmasi bekor qilindi.`,
+          }),
         };
       });
 

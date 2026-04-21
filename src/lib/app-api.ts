@@ -1,4 +1,6 @@
 import type {
+  AuditLogEntry,
+  BroadcastAudience,
   CustomerOrder,
   CustomerProfile,
   GeoPoint,
@@ -189,7 +191,10 @@ export function deleteProduct(productId: string, adminToken?: string) {
   });
 }
 
-export function sendBroadcast(payload: { title: string; body: string }, adminToken?: string) {
+export function sendBroadcast(
+  payload: { title: string; body: string; audience?: BroadcastAudience },
+  adminToken?: string,
+) {
   return requestJson<{ ok: boolean; sent?: number }>(`/api/broadcast`, {
     method: "POST",
     adminToken,
@@ -238,11 +243,37 @@ export function validateAdminToken(adminToken: string) {
 export function fetchAdminState(adminToken: string) {
   return requestJson<{
     ok: boolean;
+    session: {
+      token: string;
+      label: string;
+      role: "owner" | "manager" | "support";
+      expiresAt: string;
+    };
     orders: CustomerOrder[];
     products: ManagedProduct[];
     customers: CustomerProfile[];
     reviews: Review[];
-    broadcasts: Array<{ id: string; title: string; body: string; createdAt: string }>;
+    broadcasts: Array<{
+      id: string;
+      title: string;
+      body: string;
+      createdAt: string;
+      audience: BroadcastAudience;
+      sentCount?: number;
+    }>;
+    customerInsights: Array<{
+      customer: CustomerProfile;
+      totalOrders: number;
+      paidOrders: number;
+      totalSpent: number;
+      averageOrderValue: number;
+      lastOrderAt?: string;
+      favoriteCategory?: ManagedProduct["category"];
+      segment: "new" | "active" | "vip" | "at-risk";
+    }>;
+    lowStockProducts: ManagedProduct[];
+    orderBuckets: Record<string, CustomerOrder[]>;
+    auditLog: AuditLogEntry[];
     pickupPoints: PickupPoint[];
     analytics: {
       ordersTotal: number;

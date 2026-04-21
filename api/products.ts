@@ -1,5 +1,5 @@
 import type { ManagedProduct } from "../src/types/app-data.js";
-import { attachReviewSummary, mutateAppData, nextBroadcastId, readAppData } from "./_lib/app-data.js";
+import { appendAuditLog, attachReviewSummary, mutateAppData, nextBroadcastId, readAppData } from "./_lib/app-data.js";
 import { requireAdminRequest } from "./_lib/admin-auth.js";
 
 interface ApiRequest {
@@ -74,9 +74,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               title: "Admin yangilanishi",
               body: `${nextProduct.name} mahsuloti katalogda yangilandi.`,
               createdAt: new Date().toISOString(),
+              audience: "all",
+              sentCount: 0,
             },
             ...state.broadcasts,
           ].slice(0, 50),
+          auditLog: appendAuditLog(state.auditLog, {
+            actor: "admin-panel",
+            actorRole: "owner",
+            action: existingIndex >= 0 ? "product.updated" : "product.created",
+            entityType: "product",
+            entityId: nextProduct.id,
+            summary: `${nextProduct.name} mahsuloti saqlandi. Qoldiq: ${nextProduct.stockKg} kg.`,
+          }),
         };
       });
 
@@ -98,6 +108,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const nextState = await mutateAppData((state) => ({
         ...state,
         products: state.products.filter((item) => item.id !== payload.id),
+        auditLog: appendAuditLog(state.auditLog, {
+          actor: "admin-panel",
+          actorRole: "owner",
+          action: "product.deleted",
+          entityType: "product",
+          entityId: payload.id,
+          summary: `${payload.id} mahsuloti katalogdan o'chirildi.`,
+        }),
       }));
 
       res.status(200).json({

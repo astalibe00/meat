@@ -164,7 +164,11 @@ describe("mini app state flows", () => {
     render(<SearchScreen />);
 
     expect(screen.getByText("Qidiruv")).toBeInTheDocument();
-    expect(screen.getByText("Tavsiya etilgan mahsulotlar")).toBeInTheDocument();
+    expect(
+      screen.getByText((text) =>
+        text === "Tavsiya etilgan mahsulotlar" || text === "Siz uchun tavsiyalar",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText(product.name)).toBeInTheDocument();
   });
 

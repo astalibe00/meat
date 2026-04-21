@@ -2,6 +2,12 @@ import type { Product } from "@/data/products";
 
 export type FulfillmentType = "delivery" | "pickup";
 
+export type CustomerSegment = "new" | "active" | "vip" | "at-risk";
+
+export type BroadcastAudience = "all" | CustomerSegment;
+
+export type AdminRole = "owner" | "manager" | "support";
+
 export type PaymentMethod =
   | "humo"
   | "uzcard"
@@ -125,11 +131,25 @@ export interface BroadcastMessage {
   title: string;
   body: string;
   createdAt: string;
+  audience: BroadcastAudience;
+  sentCount?: number;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor: string;
+  actorRole?: AdminRole;
+  action: string;
+  entityType: "product" | "order" | "broadcast" | "customer" | "system";
+  entityId?: string;
+  summary: string;
+  createdAt: string;
 }
 
 export interface AdminSession {
   token: string;
   label: string;
+  role: AdminRole;
   createdAt: string;
   expiresAt: string;
   lastUsedAt: string;
@@ -148,5 +168,6 @@ export interface AppDataState {
   orders: CustomerOrder[];
   reviews: Review[];
   broadcasts: BroadcastMessage[];
+  auditLog: AuditLogEntry[];
   adminAuth: AdminAuthState;
 }
