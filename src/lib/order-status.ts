@@ -1,4 +1,4 @@
-import type { OrderStatus, PaymentMethod, PaymentStatus } from "../types/app-data";
+import type { OrderStatus, PaymentMethod, PaymentStatus } from "../types/app-data.js";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Kutilmoqda",

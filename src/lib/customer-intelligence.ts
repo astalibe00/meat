@@ -8,7 +8,7 @@ import type {
   ManagedProduct,
   PaymentMethod,
   PaymentStatus,
-} from "../types/app-data";
+} from "../types/app-data.js";
 
 export interface CustomerInsight {
   customer: CustomerProfile;
