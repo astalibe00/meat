@@ -16,10 +16,15 @@ const SORTS: { id: CatalogSort; label: string }[] = [
 
 export function CategoriesScreen() {
   const screen = useApp((state) => state.screen);
-  const allProducts = useApp((state) => state.products.filter((product) => product.enabled !== false));
+  const rawProducts = useApp((state) => state.products);
   const [active, setActive] = useState<CategoryId | "all">("all");
   const [sort, setSort] = useState<CatalogSort>("popular");
   const [onlySale, setOnlySale] = useState(false);
+
+  const allProducts = useMemo(
+    () => rawProducts.filter((product) => product.enabled !== false),
+    [rawProducts],
+  );
 
   useEffect(() => {
     if (screen.name !== "categories") {

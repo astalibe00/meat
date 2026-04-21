@@ -28,11 +28,15 @@ export function ProductDetailScreen() {
   const navigate = useApp((state) => state.navigate);
   const toggleFavorite = useApp((state) => state.toggleFavorite);
   const favorites = useApp((state) => state.favorites);
-  const products = useApp((state) => state.products.filter((product) => product.enabled !== false));
+  const rawProducts = useApp((state) => state.products);
   const getProductById = useApp((state) => state.getProductById);
   const getProductReviews = useApp((state) => state.getProductReviews);
 
   const productId = screen.name === "product" ? screen.id : "";
+  const products = useMemo(
+    () => rawProducts.filter((product) => product.enabled !== false),
+    [rawProducts],
+  );
   const product = getProductById(productId);
   const isFavorite = favorites.includes(productId);
   const [quantity, setQuantity] = useState(1);

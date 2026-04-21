@@ -19,8 +19,12 @@ export function SearchScreen() {
   const pushRecentSearch = useApp((state) => state.pushRecentSearch);
   const clearRecentSearches = useApp((state) => state.clearRecentSearches);
   const navigate = useApp((state) => state.navigate);
-  const products = useApp((state) => state.products.filter((product) => product.enabled !== false));
+  const rawProducts = useApp((state) => state.products);
   const [query, setQuery] = useState("");
+  const products = useMemo(
+    () => rawProducts.filter((product) => product.enabled !== false),
+    [rawProducts],
+  );
   const featured = useMemo(() => products.slice(0, 6), [products]);
 
   const results = useMemo(() => {

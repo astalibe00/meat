@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { PRODUCTS } from "@/data/products";
 import { CartScreen } from "@/screens/CartScreen";
+import { CategoriesScreen } from "@/screens/CategoriesScreen";
 import { CheckoutScreen } from "@/screens/CheckoutScreen";
+import { ProductDetailScreen } from "@/screens/ProductDetailScreen";
+import { SearchScreen } from "@/screens/SearchScreen";
 import { useApp } from "@/store/useApp";
 import type { ManagedProduct } from "@/types/app-data";
 
@@ -126,5 +129,60 @@ describe("mini app state flows", () => {
     expect(useApp.getState().checkout.address).toBe(customAddress);
     expect(useApp.getState().checkout.addressLabel).toBe("Ofis");
     expect(useApp.getState().checkout.paymentMethod).toBe("payme");
+  });
+
+  it("renders categories without entering a zustand selector loop", () => {
+    const product = toManagedProduct();
+
+    useApp.setState(
+      {
+        ...initialState,
+        screen: { name: "categories" },
+        products: [product],
+      },
+      true,
+    );
+
+    render(<CategoriesScreen />);
+
+    expect(screen.getByText("Katalog")).toBeInTheDocument();
+    expect(screen.getByText(product.name)).toBeInTheDocument();
+  });
+
+  it("renders search recommendations without crashing", () => {
+    const product = toManagedProduct();
+
+    useApp.setState(
+      {
+        ...initialState,
+        screen: { name: "search" },
+        products: [product],
+      },
+      true,
+    );
+
+    render(<SearchScreen />);
+
+    expect(screen.getByText("Qidiruv")).toBeInTheDocument();
+    expect(screen.getByText("Tavsiya etilgan mahsulotlar")).toBeInTheDocument();
+    expect(screen.getByText(product.name)).toBeInTheDocument();
+  });
+
+  it("renders product detail without entering a selector loop", () => {
+    const product = toManagedProduct();
+
+    useApp.setState(
+      {
+        ...initialState,
+        screen: { name: "product", id: product.id },
+        products: [product],
+      },
+      true,
+    );
+
+    render(<ProductDetailScreen />);
+
+    expect(screen.getByText(product.name)).toBeInTheDocument();
+    expect(screen.getByText("Mahsulot haqida")).toBeInTheDocument();
   });
 });
