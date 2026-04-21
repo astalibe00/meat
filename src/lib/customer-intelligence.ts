@@ -6,6 +6,8 @@ import type {
   CustomerProfile,
   CustomerSegment,
   ManagedProduct,
+  PaymentMethod,
+  PaymentStatus,
 } from "@/types/app-data";
 
 export interface CustomerInsight {
@@ -17,6 +19,28 @@ export interface CustomerInsight {
   lastOrderAt?: string;
   favoriteCategory?: ManagedProduct["category"];
   segment: CustomerSegment;
+}
+
+export interface PaymentMethodSummary {
+  method: PaymentMethod;
+  totalOrders: number;
+  paidOrders: number;
+  totalAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
+}
+
+export interface PaymentStatusSummary {
+  status: PaymentStatus;
+  count: number;
+  amount: number;
+}
+
+export interface RevenuePoint {
+  date: string;
+  label: string;
+  orders: number;
+  revenue: number;
 }
 
 function sum(values: number[]) {
@@ -124,4 +148,66 @@ export function latestAuditEntries(auditLog: AuditLogEntry[], limit = 20) {
   return [...auditLog]
     .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
     .slice(0, limit);
+}
+
+export function summarizePaymentsByMethod(orders: CustomerOrder[]): PaymentMethodSummary[] {
+  const methods: PaymentMethod[] = ["click", "payme", "paynet", "humo", "uzcard", "cash"];
+
+  return methods.map((method) => {
+    const relatedOrders = orders.filter((order) => order.paymentMethod === method);
+    const paidOrders = relatedOrders.filter((order) => order.paymentStatus === "paid");
+    const totalAmount = sum(relatedOrders.map((order) => order.total));
+    const paidAmount = sum(paidOrders.map((order) => order.total));
+
+    return {
+      method,
+      totalOrders: relatedOrders.length,
+      paidOrders: paidOrders.length,
+      totalAmount,
+      paidAmount,
+      pendingAmount: Math.max(0, totalAmount - paidAmount),
+    };
+  });
+}
+
+export function summarizePaymentsByStatus(orders: CustomerOrder[]): PaymentStatusSummary[] {
+  const statuses: PaymentStatus[] = ["pending", "paid", "refund-pending", "refunded", "cancelled"];
+
+  return statuses.map((status) => {
+    const relatedOrders = orders.filter((order) => order.paymentStatus === status);
+    return {
+      status,
+      count: relatedOrders.length,
+      amount: sum(relatedOrders.map((order) => order.total)),
+    };
+  });
+}
+
+export function buildRevenueSeries(orders: CustomerOrder[], days = 7): RevenuePoint[] {
+  const points: RevenuePoint[] = [];
+
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - offset);
+
+    const nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    const dayOrders = orders.filter((order) => {
+      const createdAt = Date.parse(order.createdAt);
+      return createdAt >= date.getTime() && createdAt < nextDay.getTime();
+    });
+
+    const paidOrders = dayOrders.filter((order) => order.paymentStatus === "paid");
+
+    points.push({
+      date: date.toISOString(),
+      label: new Intl.DateTimeFormat("uz-UZ", { weekday: "short" }).format(date),
+      orders: dayOrders.length,
+      revenue: sum(paidOrders.map((order) => order.total)),
+    });
+  }
+
+  return points;
 }

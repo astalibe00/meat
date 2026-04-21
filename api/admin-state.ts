@@ -1,9 +1,12 @@
 import { requireAdminRequest } from "./_lib/admin-auth.js";
 import { attachReviewSummary, readAppData } from "./_lib/app-data.js";
 import {
+  buildRevenueSeries,
   buildCustomerInsights,
   groupOrdersByStatus,
   latestAuditEntries,
+  summarizePaymentsByMethod,
+  summarizePaymentsByStatus,
   summarizeLowStockProducts,
 } from "../src/lib/customer-intelligence.js";
 
@@ -66,6 +69,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         pendingRevenue,
         averageOrderValue: paidOrders.length ? Math.round(totalRevenue / paidOrders.length) : 0,
         lowStockCount: lowStockProducts.length,
+        paymentsByMethod: summarizePaymentsByMethod(state.orders),
+        paymentsByStatus: summarizePaymentsByStatus(state.orders),
+        revenueSeries: buildRevenueSeries(state.orders),
       },
     });
   } catch (error) {

@@ -8,6 +8,7 @@ import { CategoriesScreen } from "@/screens/CategoriesScreen";
 import { CheckoutScreen } from "@/screens/CheckoutScreen";
 import { FavoritesScreen } from "@/screens/FavoritesScreen";
 import { HomeScreen } from "@/screens/HomeScreen";
+import { NotificationsScreen } from "@/screens/NotificationsScreen";
 import { OrdersScreen } from "@/screens/OrdersScreen";
 import { ProductDetailScreen } from "@/screens/ProductDetailScreen";
 import { ProfileScreen } from "@/screens/ProfileScreen";
@@ -68,6 +69,8 @@ export default function Index() {
         return <CheckoutScreen />;
       case "orders":
         return <OrdersScreen />;
+      case "notifications":
+        return <NotificationsScreen />;
       case "support":
         return <SupportScreen />;
       case "addresses":

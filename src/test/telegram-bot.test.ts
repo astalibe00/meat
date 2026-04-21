@@ -3,6 +3,7 @@ import {
   buildCategoryMessage,
   buildDealsMessage,
   buildHelpMessage,
+  buildNotificationsMessage,
   buildSearchResultsMessage,
   buildSupportMessage,
   buildTopProductsMessage,
@@ -40,6 +41,7 @@ describe("telegram bot copy", () => {
 
   it("supports help and search responses", () => {
     expect(buildHelpMessage()).toContain("/search");
+    expect(buildHelpMessage()).toContain("/messages");
     expect(buildSearchResultsMessage(managedProducts, "ribay")).toContain("Mol ribay steyki");
   });
 
@@ -65,5 +67,22 @@ describe("telegram bot copy", () => {
     ];
 
     expect(buildTopProductsMessage(managedProducts, orders)).toContain(managedProducts[0].name);
+  });
+
+  it("renders customer notifications for bot inbox", () => {
+    const message = buildNotificationsMessage([
+      {
+        id: "notification-1",
+        telegramUserId: 1,
+        title: "Buyurtma holati yangilandi",
+        body: "MEAT-1 holati: Tasdiqlandi.",
+        createdAt: new Date().toISOString(),
+        kind: "order",
+        orderId: "MEAT-1",
+      },
+    ]);
+
+    expect(message).toContain("Xabarlarim");
+    expect(message).toContain("MEAT-1");
   });
 });

@@ -189,4 +189,29 @@ describe("mini app state flows", () => {
     expect(screen.getByText(product.name)).toBeInTheDocument();
     expect(screen.getByText("Mahsulot haqida")).toBeInTheDocument();
   });
+
+  it("marks local notifications as read when requested", async () => {
+    useApp.setState(
+      {
+        ...initialState,
+        notifications: [
+          {
+            id: "notification-1",
+            telegramUserId: 99,
+            title: "Buyurtma yangilandi",
+            body: "MEAT-1 tasdiqlandi.",
+            createdAt: new Date().toISOString(),
+            kind: "order",
+            orderId: "MEAT-1",
+          },
+        ],
+      },
+      true,
+    );
+
+    const result = await useApp.getState().markNotificationsRead();
+
+    expect(result.ok).toBe(true);
+    expect(useApp.getState().notifications[0]?.readAt).toBeTruthy();
+  });
 });

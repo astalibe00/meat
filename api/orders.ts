@@ -13,6 +13,7 @@ import type {
 } from "../src/types/app-data.js";
 import {
   appendAuditLog,
+  appendNotifications,
   mutateAppData,
   nextOrderId,
   nextStatusEventId,
@@ -153,6 +154,22 @@ function summarizeOrder(order: CustomerOrder) {
     .join("\n");
 }
 
+function buildOrderNotification(order: CustomerOrder, title: string, body: string) {
+  if (!order.customer.telegramUserId) {
+    return [];
+  }
+
+  return [
+    {
+      telegramUserId: order.customer.telegramUserId,
+      title,
+      body,
+      kind: "order" as const,
+      orderId: order.id,
+    },
+  ];
+}
+
 function resolvePaymentStatus(status: OrderStatus, order: CustomerOrder): PaymentStatus {
   if (status === "cancelled") {
     return isOnlinePayment(order.paymentMethod) ? "refund-pending" : "cancelled";
@@ -283,8 +300,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             return {
               ...product,
               stockKg: Math.max(0, Number((product.stockKg - getRequestedKg(line)).toFixed(2))),
-            };
+                };
           }),
+          notifications: appendNotifications(
+            state.notifications,
+            buildOrderNotification(
+              order,
+              "Buyurtma yaratildi",
+              isOnlinePayment(order.paymentMethod)
+                ? `${order.id} buyurtmangiz yaratildi. ${P2P_PAYMENT_CARD} kartaga to'lov qilib, admin tasdig'ini kuting.`
+                : `${order.id} buyurtmangiz qabul qilindi va admin tasdig'iga yuborildi.`,
+            ),
+          ),
           auditLog: appendAuditLog(state.auditLog, {
             actor: payload.telegramUserId ? `telegram:${payload.telegramUserId}` : "customer",
             action: "order.created",
@@ -383,6 +410,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return {
           ...state,
           orders: replaceOrder(state.orders, updatedOrder),
+          notifications: appendNotifications(
+            state.notifications,
+            buildOrderNotification(
+              updatedOrder,
+              payload.action === "cancel" ? "Buyurtma bekor qilindi" : "Buyurtma holati yangilandi",
+              payload.action === "cancel"
+                ? `${updatedOrder.id} buyurtmangiz bekor qilindi.`
+                : `${updatedOrder.id} holati: ${ORDER_STATUS_LABELS[updatedOrder.status]}.`,
+            ),
+          ),
           auditLog: appendAuditLog(state.auditLog, {
             actor:
               payload.action === "status"

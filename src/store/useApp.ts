@@ -15,6 +15,7 @@ import {
   deleteProduct,
   fetchAppState,
   fetchCatalogProducts,
+  markNotificationsReadRequest,
   reverseGeocode,
   saveCustomerProfile,
   saveProduct,
@@ -31,6 +32,7 @@ import {
 import { getProductMaxUnits, getLineWeightKg } from "@/lib/weights";
 import type { TelegramUser } from "@/lib/telegram-webapp";
 import type {
+  CustomerNotification,
   CustomerOrder,
   CustomerProfile,
   FulfillmentType,
@@ -54,6 +56,7 @@ export type Screen =
   | { name: "support" }
   | { name: "profile" }
   | { name: "addresses" }
+  | { name: "notifications" }
   | { name: "favorites" }
   | { name: "product"; id: string };
 
@@ -94,6 +97,7 @@ interface AppState {
   products: ManagedProduct[];
   pickupPoints: PickupPoint[];
   orders: CustomerOrder[];
+  notifications: CustomerNotification[];
   reviews: Review[];
   supportContact: SupportContact;
   telegramUser?: TelegramUser;
@@ -136,12 +140,16 @@ interface AppState {
     orderId: string,
     status: OrderStatus,
   ) => Promise<{ ok: boolean; error?: string }>;
+  markNotificationsRead: (
+    notificationIds?: string[],
+  ) => Promise<{ ok: boolean; error?: string }>;
   repeatOrder: (orderId: string) => { ok: boolean; message: string };
   resetDemoData: () => void;
   cartCount: () => number;
   cartSubtotal: () => number;
   cartSavings: () => number;
   cartPricing: () => CartPricing;
+  unreadNotificationsCount: () => number;
   getProductById: (productId: string) => ManagedProduct | undefined;
   getProductReviews: (productId: string) => Review[];
 }
@@ -336,6 +344,7 @@ export const useApp = create<AppState>()(
       products: SEED_PRODUCTS,
       pickupPoints: DEFAULT_PICKUP_POINTS,
       orders: [],
+      notifications: [],
       reviews: [],
       supportContact: DEFAULT_SUPPORT_CONTACT,
       isSyncing: false,
@@ -407,6 +416,7 @@ export const useApp = create<AppState>()(
                 : current.products,
             pickupPoints,
             orders: response.orders ?? current.orders,
+            notifications: response.notifications ?? current.notifications,
             reviews: response.reviews ?? current.reviews,
             checkout,
             supportContact: response.support ?? current.supportContact,
@@ -871,6 +881,49 @@ export const useApp = create<AppState>()(
           };
         }
       },
+      markNotificationsRead: async (notificationIds) => {
+        const state = get();
+        const telegramUserId = state.telegramUser?.id;
+        const readAt = new Date().toISOString();
+
+        if (!telegramUserId) {
+          set((current) => ({
+            notifications: current.notifications.map((notification) => {
+              if (notification.readAt) {
+                return notification;
+              }
+
+              if (notificationIds?.length && !notificationIds.includes(notification.id)) {
+                return notification;
+              }
+
+              return {
+                ...notification,
+                readAt,
+              };
+            }),
+          }));
+          return { ok: true };
+        }
+
+        try {
+          const response = await markNotificationsReadRequest({
+            telegramUserId,
+            notificationIds,
+          });
+
+          set((current) => ({
+            notifications: response.notifications ?? current.notifications,
+          }));
+
+          return { ok: true };
+        } catch (error) {
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : "Xabarlar yangilanmadi.",
+          };
+        }
+      },
       repeatOrder: (orderId) => {
         const state = get();
         const order = state.orders.find((item) => item.id === orderId);
@@ -903,6 +956,7 @@ export const useApp = create<AppState>()(
           recentSearches: [],
           promoCode: "",
           orders: [],
+          notifications: [],
           reviews: [],
           checkout: normalizeCheckout(
             {
@@ -936,6 +990,8 @@ export const useApp = create<AppState>()(
 
         return pricing;
       },
+      unreadNotificationsCount: () =>
+        get().notifications.filter((notification) => !notification.readAt).length,
       getProductById: (productId) => get().products.find((product) => product.id === productId),
       getProductReviews: (productId) =>
         get()

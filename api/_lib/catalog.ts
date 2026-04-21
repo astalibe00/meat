@@ -1,5 +1,5 @@
 import { searchProducts } from "../../src/lib/catalog-intelligence.js";
-import type { CustomerOrder, ManagedProduct } from "../../src/types/app-data.js";
+import type { CustomerNotification, CustomerOrder, ManagedProduct } from "../../src/types/app-data.js";
 
 export interface BotCategory {
   id: string;
@@ -126,6 +126,7 @@ export function buildHelpMessage() {
     "/menu - asosiy menyu",
     "/shop - katalog bo'limlari",
     "/orders - buyurtmalarim",
+    "/messages - xabarlarim",
     "/status BUYURTMA_ID - aniq buyurtma holati",
     "/search so'rov - mahsulot qidirish",
     "/top - eng ko'p so'ralayotgan mahsulotlar",
@@ -179,5 +180,22 @@ export function buildTopProductsMessage(products: ManagedProduct[], orders: Cust
     ),
     "",
     "Katalog va checkout uchun Mini Appni oching.",
+  ].join("\n");
+}
+
+export function buildNotificationsMessage(notifications: CustomerNotification[]) {
+  if (notifications.length === 0) {
+    return "Hozircha yangi xabarlar yo'q. Buyurtma yangilanishlari va admin e'lonlari shu bo'limda chiqadi.";
+  }
+
+  return [
+    "Xabarlarim",
+    "",
+    ...notifications.slice(0, 5).map((notification, index) => {
+      const lead = notification.orderId ? `${notification.title} (${notification.orderId})` : notification.title;
+      return `${index + 1}. ${lead}\n${notification.body}`;
+    }),
+    "",
+    "To'liq tracking va katalog uchun Mini Appni oching.",
   ].join("\n");
 }

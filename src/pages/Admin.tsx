@@ -681,6 +681,71 @@ export default function AdminPage() {
                 <FinanceRow label="O'rtacha buyurtma" value={formatCurrency(adminState.analytics.averageOrderValue)} />
                 <FinanceRow label="Kam qolgan mahsulotlar" value={`${adminState.analytics.lowStockCount} ta`} />
               </div>
+
+              <div className="mt-5 grid gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  To'lov kanallari
+                </p>
+                {adminState.analytics.paymentsByMethod.map((entry) => (
+                  <div key={entry.method} className="rounded-2xl bg-paper px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold">{PAYMENT_METHOD_LABELS[entry.method]}</p>
+                      <span className="text-xs text-muted-foreground">{entry.totalOrders} ta buyurtma</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                      <FinanceMiniCard label="To'langan" value={formatCurrency(entry.paidAmount)} />
+                      <FinanceMiniCard label="Kutilmoqda" value={formatCurrency(entry.pendingAmount)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Payment status kesimi
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {adminState.analytics.paymentsByStatus.map((entry) => (
+                    <div key={entry.status} className="rounded-2xl bg-paper px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold">{PAYMENT_STATUS_LABELS[entry.status]}</p>
+                        <span className="text-xs text-muted-foreground">{entry.count} ta</span>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold">{formatCurrency(entry.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Oxirgi 7 kun
+                </p>
+                <div className="grid grid-cols-7 gap-2">
+                  {adminState.analytics.revenueSeries.map((point) => {
+                    const maxRevenue = Math.max(
+                      ...adminState.analytics.revenueSeries.map((item) => item.revenue),
+                      1,
+                    );
+                    const height = Math.max(10, Math.round((point.revenue / maxRevenue) * 92));
+
+                    return (
+                      <div key={point.date} className="rounded-2xl bg-paper px-2 py-3 text-center">
+                        <div className="flex h-28 items-end justify-center">
+                          <span
+                            className="w-7 rounded-full bg-primary/85 transition-all"
+                            style={{ height }}
+                          />
+                        </div>
+                        <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          {point.label}
+                        </p>
+                        <p className="mt-1 text-[11px] font-semibold">{point.orders} ta</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </section>
 
             <section className="rounded-3xl bg-surface p-5 shadow-card">
@@ -856,6 +921,15 @@ function FinanceRow({ label, value }: { label: string; value: string }) {
 function CustomerMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-surface px-3 py-2 text-center">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-[11px] font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function FinanceMiniCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-surface px-3 py-2">
       <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p className="mt-1 text-[11px] font-semibold">{value}</p>
     </div>

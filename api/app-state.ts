@@ -23,6 +23,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const orders = telegramUserId
       ? data.orders.filter((order) => order.customer.telegramUserId === telegramUserId)
       : [];
+    const notifications = telegramUserId
+      ? data.notifications.filter((notification) => notification.telegramUserId === telegramUserId)
+      : [];
 
     res.status(200).json({
       ok: true,
@@ -30,6 +33,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       pickupPoints: data.pickupPoints,
       products: attachReviewSummary(data.products, data.reviews),
       orders,
+      notifications,
       reviews: data.reviews,
       support: {
         phone: "+998990197548",

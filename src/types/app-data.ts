@@ -8,6 +8,8 @@ export type BroadcastAudience = "all" | CustomerSegment;
 
 export type AdminRole = "owner" | "manager" | "support";
 
+export type CustomerNotificationKind = "order" | "broadcast" | "system";
+
 export type PaymentMethod =
   | "humo"
   | "uzcard"
@@ -135,6 +137,17 @@ export interface BroadcastMessage {
   sentCount?: number;
 }
 
+export interface CustomerNotification {
+  id: string;
+  telegramUserId: number;
+  title: string;
+  body: string;
+  createdAt: string;
+  readAt?: string;
+  kind: CustomerNotificationKind;
+  orderId?: string;
+}
+
 export interface AuditLogEntry {
   id: string;
   actor: string;
@@ -168,6 +181,7 @@ export interface AppDataState {
   orders: CustomerOrder[];
   reviews: Review[];
   broadcasts: BroadcastMessage[];
+  notifications: CustomerNotification[];
   auditLog: AuditLogEntry[];
   adminAuth: AdminAuthState;
 }

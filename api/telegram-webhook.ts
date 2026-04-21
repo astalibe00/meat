@@ -4,6 +4,7 @@ import {
   buildDealsMessage,
   buildDeliveryMessage,
   buildHelpMessage,
+  buildNotificationsMessage,
   buildSearchResultsMessage,
   buildSupportMessage,
   buildTopProductsMessage,
@@ -20,7 +21,7 @@ import {
   orderActionKeyboard,
   sendMessage,
 } from "./_lib/telegram.js";
-import { mutateAppData, readAppData, replaceOrder, upsertCustomer } from "./_lib/app-data.js";
+import { appendNotifications, mutateAppData, readAppData, replaceOrder, upsertCustomer } from "./_lib/app-data.js";
 import { ORDER_STATUS_LABELS } from "../src/lib/order-status.js";
 import type { CustomerOrder, OrderStatus } from "../src/types/app-data.js";
 
@@ -146,6 +147,24 @@ async function sendSingleOrderStatus(chatId: number | string, orderId: string, t
   );
 }
 
+async function sendCustomerNotifications(chatId: number | string, telegramUserId?: number) {
+  if (!telegramUserId) {
+    await sendMessage(chatId, "Avval bot orqali profilingizni oching yoki telefoningizni ulashing.", {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  const state = await readAppData();
+  const notifications = state.notifications
+    .filter((notification) => notification.telegramUserId === telegramUserId)
+    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+
+  await sendMessage(chatId, buildNotificationsMessage(notifications), {
+    reply_markup: mainInlineKeyboard(),
+  });
+}
+
 async function routeText(chatId: number | string, text: string, telegramUserId?: number) {
   const normalized = text.toLowerCase();
 
@@ -200,6 +219,10 @@ async function routeText(chatId: number | string, text: string, telegramUserId?:
     });
   }
 
+  if (normalized === "xabarlarim" || normalized === "/messages") {
+    return sendCustomerNotifications(chatId, telegramUserId);
+  }
+
   if (normalized === "buyurtmalarim" || normalized === "/orders") {
     return sendCustomerOrders(chatId, telegramUserId);
   }
@@ -241,7 +264,7 @@ async function routeText(chatId: number | string, text: string, telegramUserId?:
 
   return sendMessage(
     chatId,
-    "Mini App, Katalog, Buyurtmalarim, Aksiyalar, Yetkazib berish, Yordam yoki Telefonni ulashish tugmalaridan foydalaning.",
+    "Mini App, Katalog, Buyurtmalarim, Xabarlarim, Aksiyalar, Yetkazib berish, Yordam yoki Telefonni ulashish tugmalaridan foydalaning.",
     {
       reply_markup: mainReplyKeyboard(),
     },
@@ -345,6 +368,17 @@ async function handleOrderCallback(update: TelegramUpdate, orderId: string, stat
     return {
       ...state,
       orders: replaceOrder(state.orders, updatedOrder),
+      notifications: updatedOrder.customer.telegramUserId
+        ? appendNotifications(state.notifications, [
+            {
+              telegramUserId: updatedOrder.customer.telegramUserId,
+              title: "Buyurtma holati yangilandi",
+              body: `${updatedOrder.id} holati: ${ORDER_STATUS_LABELS[updatedOrder.status]}.`,
+              kind: "order",
+              orderId: updatedOrder.id,
+            },
+          ])
+        : state.notifications,
     };
   });
 
@@ -443,6 +477,12 @@ async function routeCallback(update: TelegramUpdate) {
   if (data === "menu:orders") {
     await answerCallbackQuery(callbackQuery.id, "Buyurtmalar");
     await sendCustomerOrders(chatId, callbackQuery?.from?.id);
+    return;
+  }
+
+  if (data === "menu:messages") {
+    await answerCallbackQuery(callbackQuery.id, "Xabarlar");
+    await sendCustomerNotifications(chatId, callbackQuery?.from?.id);
     return;
   }
 

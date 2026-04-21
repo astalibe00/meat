@@ -5,7 +5,9 @@ export function TopHeader() {
   const navigate = useApp((state) => state.navigate);
   const checkout = useApp((state) => state.checkout);
   const pickupPoints = useApp((state) => state.pickupPoints);
+  const notifications = useApp((state) => state.notifications);
   const activePickupPoint = pickupPoints.find((point) => point.id === checkout.pickupPointId);
+  const unreadCount = notifications.filter((notification) => !notification.readAt).length;
   const addressLabel =
     checkout.fulfillmentType === "pickup"
       ? activePickupPoint?.title ?? "Tarqatish punkti"
@@ -36,12 +38,16 @@ export function TopHeader() {
         </span>
       </div>
       <button
-        onClick={() => navigate({ name: "orders" })}
+        onClick={() => navigate({ name: "notifications" })}
         className="tap relative w-9 h-9 grid place-items-center rounded-full bg-paper active:scale-95 transition-transform"
-        aria-label="Buyurtmalar"
+        aria-label="Xabarlar"
       >
         <Bell className="w-4 h-4" strokeWidth={2.25} />
-        <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-sale" />
+        {unreadCount > 0 && (
+          <span className="absolute -right-1 -top-1 min-w-[18px] h-[18px] rounded-full bg-sale px-1 text-[10px] font-bold text-white grid place-items-center">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
       </button>
     </header>
   );

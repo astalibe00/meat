@@ -3,6 +3,7 @@ import type {
   AdminAuthState,
   AuditLogEntry,
   AppDataState,
+  CustomerNotification,
   CustomerOrder,
   CustomerProfile,
   ManagedProduct,
@@ -313,6 +314,7 @@ export function getDefaultAppData(): AppDataState {
     orders: [],
     reviews: [],
     broadcasts: [],
+    notifications: [],
     auditLog: getDefaultAuditLog(),
     adminAuth: getDefaultAdminAuth(),
   };
@@ -405,6 +407,14 @@ export function normalizeAppData(state?: Partial<AppDataState>): AppDataState {
       ...message,
       audience: message.audience ?? "all",
     })),
+    notifications: (state?.notifications ?? [])
+      .filter((notification): notification is CustomerNotification => Boolean(notification?.telegramUserId))
+      .map((notification) => ({
+        ...notification,
+        kind: notification.kind ?? "system",
+      }))
+      .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+      .slice(0, 500),
     auditLog: state?.auditLog ?? [],
     adminAuth: {
       loginCode: state?.adminAuth?.loginCode,
@@ -484,6 +494,10 @@ export function nextAuditId() {
   return createId("audit");
 }
 
+export function nextNotificationId() {
+  return createId("notification");
+}
+
 export function appendAuditLog(
   auditLog: AuditLogEntry[],
   entry: Omit<AuditLogEntry, "id" | "createdAt">,
@@ -496,6 +510,49 @@ export function appendAuditLog(
     },
     ...auditLog,
   ].slice(0, 250);
+}
+
+export function appendNotifications(
+  notifications: CustomerNotification[],
+  entries: Array<Omit<CustomerNotification, "id" | "createdAt">>,
+) {
+  if (!entries.length) {
+    return notifications;
+  }
+
+  const nextEntries = entries.map((entry) => ({
+    id: nextNotificationId(),
+    createdAt: new Date().toISOString(),
+    ...entry,
+  }));
+
+  return [...nextEntries, ...notifications]
+    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+    .slice(0, 500);
+}
+
+export function markNotificationsRead(
+  notifications: CustomerNotification[],
+  telegramUserId: number,
+  notificationIds?: string[],
+) {
+  const notificationSet = notificationIds?.length ? new Set(notificationIds) : null;
+  const readAt = new Date().toISOString();
+
+  return notifications.map((notification) => {
+    if (notification.telegramUserId !== telegramUserId || notification.readAt) {
+      return notification;
+    }
+
+    if (notificationSet && !notificationSet.has(notification.id)) {
+      return notification;
+    }
+
+    return {
+      ...notification,
+      readAt,
+    };
+  });
 }
 
 export function replaceOrder(orders: CustomerOrder[], order: CustomerOrder) {

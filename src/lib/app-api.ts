@@ -1,6 +1,7 @@
 import type {
   AuditLogEntry,
   BroadcastAudience,
+  CustomerNotification,
   CustomerOrder,
   CustomerProfile,
   GeoPoint,
@@ -16,6 +17,7 @@ interface AppStateResponse {
   pickupPoints?: PickupPoint[];
   products?: ManagedProduct[];
   orders?: CustomerOrder[];
+  notifications?: CustomerNotification[];
   reviews?: Review[];
   support?: {
     phone: string;
@@ -60,6 +62,22 @@ export function fetchAppState(telegramUserId?: number) {
 
 export function fetchCatalogProducts() {
   return requestJson<{ ok: boolean; products?: ManagedProduct[] }>(`/api/products`);
+}
+
+export function markNotificationsReadRequest(payload: {
+  telegramUserId: number;
+  notificationIds?: string[];
+}) {
+  return requestJson<{ ok: boolean; notifications?: CustomerNotification[]; unreadCount?: number }>(
+    `/api/notifications`,
+    {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export function saveCustomerProfile(payload: {
@@ -284,6 +302,25 @@ export function fetchAdminState(adminToken: string) {
       pendingRevenue: number;
       averageOrderValue: number;
       lowStockCount: number;
+      paymentsByMethod: Array<{
+        method: "humo" | "uzcard" | "click" | "payme" | "paynet" | "cash";
+        totalOrders: number;
+        paidOrders: number;
+        totalAmount: number;
+        paidAmount: number;
+        pendingAmount: number;
+      }>;
+      paymentsByStatus: Array<{
+        status: "pending" | "paid" | "refund-pending" | "refunded" | "cancelled";
+        count: number;
+        amount: number;
+      }>;
+      revenueSeries: Array<{
+        date: string;
+        label: string;
+        orders: number;
+        revenue: number;
+      }>;
     };
   }>(`/api/admin-state`, {
     adminToken,

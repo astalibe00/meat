@@ -1,6 +1,6 @@
 import { getAdminChatIds, getChannelId, sendMessage } from "./_lib/telegram.js";
 import { requireAdminRequest } from "./_lib/admin-auth.js";
-import { appendAuditLog, mutateAppData, nextBroadcastId } from "./_lib/app-data.js";
+import { appendAuditLog, appendNotifications, mutateAppData, nextBroadcastId } from "./_lib/app-data.js";
 import { buildCustomerInsights, filterAudienceInsights } from "../src/lib/customer-intelligence.js";
 import type { BroadcastAudience } from "../src/types/app-data.js";
 
@@ -62,6 +62,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           },
           ...state.broadcasts,
         ].slice(0, 50),
+        notifications: appendNotifications(
+          state.notifications,
+          targetedCustomers
+            .map((entry) => entry.customer.telegramUserId)
+            .filter((telegramUserId): telegramUserId is number => Boolean(telegramUserId))
+            .map((telegramUserId) => ({
+              telegramUserId,
+              title,
+              body,
+              kind: "broadcast" as const,
+            })),
+        ),
         auditLog: appendAuditLog(state.auditLog, {
           actor: "admin-panel",
           action: "broadcast.sent",
