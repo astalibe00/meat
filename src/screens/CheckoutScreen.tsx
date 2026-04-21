@@ -223,7 +223,11 @@ export function CheckoutScreen() {
                 key={method}
                 selected={checkout.paymentMethod === method}
                 title={PAYMENT_METHOD_LABELS[method]}
-                body={isOnlinePayment(method) ? "To'lovdan keyin tayyorlash boshlanadi" : "Buyurtma kelganda yoki terminal orqali"}
+                body={
+                  isOnlinePayment(method)
+                    ? "Tanlagan ilovangizdan shu kartaga P2P o'tkazing"
+                    : "Buyurtma kelganda yoki terminal orqali"
+                }
                 onClick={() =>
                   updateCheckout({
                     paymentMethod: method,
@@ -241,7 +245,7 @@ export function CheckoutScreen() {
                   <p className="text-sm font-semibold">P2P karta raqami</p>
                   <p className="mt-1 font-mono text-base tracking-[0.12em]">{P2P_PAYMENT_CARD}</p>
                   <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                    Mijoz avval shu kartaga to'lov qiladi. Admin tranzaksiyani tekshirganidan keyin buyurtma tasdiqlanadi.
+                    Qaysi tizimni tanlasangiz, o'sha ilova orqali shu kartaga pul o'tkazing. Admin tranzaksiyani tekshirganidan keyin buyurtma tasdiqlanadi.
                   </p>
                 </div>
                 <button

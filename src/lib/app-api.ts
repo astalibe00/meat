@@ -56,6 +56,10 @@ export function fetchAppState(telegramUserId?: number) {
   return requestJson<AppStateResponse>(`/api/app-state${query}`);
 }
 
+export function fetchCatalogProducts() {
+  return requestJson<{ ok: boolean; products?: ManagedProduct[] }>(`/api/products`);
+}
+
 export function saveCustomerProfile(payload: {
   telegramUserId: number;
   name: string;

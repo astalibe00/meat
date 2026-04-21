@@ -20,11 +20,13 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
   const toggleFavorite = useApp((state) => state.toggleFavorite);
   const [bump, setBump] = useState(false);
 
+  const safeImage = product.image || "/placeholder.svg";
+  const safeTags = Array.isArray(product.tags) ? product.tags : [];
   const onSale = Boolean(product.oldPrice);
   const savings = onSale
     ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100)
     : 0;
-  const primaryTag = product.tags[0];
+  const primaryTag = safeTags[0];
 
   const openProduct = () => navigate({ name: "product", id: product.id });
 
@@ -58,7 +60,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
         <button onClick={openProduct} className="tap block w-full text-left">
           <div className="relative aspect-[5/4] rounded-xl overflow-hidden bg-paper mb-2">
             <img
-              src={product.image}
+              src={safeImage}
               alt={product.name}
               loading="lazy"
               className="w-full h-full object-cover"
@@ -100,7 +102,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
           <button onClick={openProduct} className="tap block w-full text-left">
             <div className="aspect-square rounded-xl overflow-hidden bg-paper mb-2.5">
               <img
-                src={product.image}
+                src={safeImage}
                 alt={product.name}
                 loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-500 group-active:scale-105"
@@ -166,7 +168,7 @@ export function ProductCard({ product, variant = "horizontal", className }: Prop
         <button onClick={openProduct} className="tap block w-full text-left">
           <div className="aspect-square rounded-xl overflow-hidden bg-paper mb-2.5">
             <img
-              src={product.image}
+              src={safeImage}
               alt={product.name}
               loading="lazy"
               className="w-full h-full object-cover transition-transform duration-500 group-active:scale-105"

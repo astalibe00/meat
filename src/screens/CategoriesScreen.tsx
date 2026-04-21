@@ -16,7 +16,7 @@ const SORTS: { id: CatalogSort; label: string }[] = [
 
 export function CategoriesScreen() {
   const screen = useApp((state) => state.screen);
-  const allProducts = useApp((state) => state.products.filter((product) => product.enabled));
+  const allProducts = useApp((state) => state.products.filter((product) => product.enabled !== false));
   const [active, setActive] = useState<CategoryId | "all">("all");
   const [sort, setSort] = useState<CatalogSort>("popular");
   const [onlySale, setOnlySale] = useState(false);

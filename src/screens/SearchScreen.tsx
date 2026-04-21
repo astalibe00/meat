@@ -19,8 +19,9 @@ export function SearchScreen() {
   const pushRecentSearch = useApp((state) => state.pushRecentSearch);
   const clearRecentSearches = useApp((state) => state.clearRecentSearches);
   const navigate = useApp((state) => state.navigate);
-  const products = useApp((state) => state.products.filter((product) => product.enabled));
+  const products = useApp((state) => state.products.filter((product) => product.enabled !== false));
   const [query, setQuery] = useState("");
+  const featured = useMemo(() => products.slice(0, 6), [products]);
 
   const results = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -30,10 +31,12 @@ export function SearchScreen() {
 
     return products.filter(
       (product) =>
-        product.name.toLowerCase().includes(term) ||
-        product.tags.some((tag) => tag.toLowerCase().includes(term)) ||
-        product.category.includes(term) ||
-        product.description.toLowerCase().includes(term),
+        (product.name ?? "").toLowerCase().includes(term) ||
+        (Array.isArray(product.tags) ? product.tags : []).some((tag) =>
+          String(tag).toLowerCase().includes(term),
+        ) ||
+        String(product.category ?? "").includes(term) ||
+        (product.description ?? "").toLowerCase().includes(term),
     );
   }, [products, query]);
 
@@ -137,6 +140,17 @@ export function SearchScreen() {
                   <span className="text-2xl">{category.emoji}</span>
                   <span className="text-[11px] font-bold">{category.name}</span>
                 </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2.5">
+              Tavsiya etilgan mahsulotlar
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {featured.map((product) => (
+                <ProductCard key={product.id} product={product} variant="grid" />
               ))}
             </div>
           </section>

@@ -246,6 +246,54 @@ function withDefaults(product: SeedProduct): ManagedProduct {
   };
 }
 
+function normalizeProduct(product: Partial<ManagedProduct>, defaults: ManagedProduct[]) {
+  const firstDefault = defaults[0];
+  const base =
+    defaults.find((item) => item.id === product.id) ??
+    withDefaults({
+      id: product.id?.trim() || createId("product"),
+      name: product.name?.trim() || "Yangi mahsulot",
+      price: Number(product.price ?? 0),
+      oldPrice: product.oldPrice ? Number(product.oldPrice) : undefined,
+      weight: product.weight?.trim() || "1 kg",
+      category: product.category ?? "beef",
+      image: product.image?.trim() || firstDefault.image,
+      tags: Array.isArray(product.tags) && product.tags.length > 0 ? product.tags : ["Fresh"],
+      description: product.description?.trim() || "Tavsif kiritilmagan.",
+      weightOptions:
+        Array.isArray(product.weightOptions) && product.weightOptions.length > 0
+          ? product.weightOptions
+          : [product.weight?.trim() || "1 kg"],
+      origin: product.origin?.trim(),
+      prepTime: product.prepTime?.trim(),
+    });
+
+  return {
+    ...base,
+    ...product,
+    id: product.id?.trim() || base.id,
+    name: product.name?.trim() || base.name,
+    price: Number(product.price ?? base.price ?? 0),
+    oldPrice: product.oldPrice ? Number(product.oldPrice) : base.oldPrice,
+    weight: product.weight?.trim() || base.weight,
+    category: product.category ?? base.category,
+    image: product.image?.trim() || base.image || firstDefault.image,
+    tags: Array.isArray(product.tags) && product.tags.length > 0 ? product.tags : base.tags,
+    description: product.description?.trim() || base.description || "Tavsif kiritilmagan.",
+    weightOptions:
+      Array.isArray(product.weightOptions) && product.weightOptions.length > 0
+        ? product.weightOptions
+        : base.weightOptions?.length
+          ? base.weightOptions
+          : [product.weight?.trim() || base.weight || "1 kg"],
+    enabled: product.enabled ?? base.enabled ?? true,
+    stockKg: Number(product.stockKg ?? base.stockKg ?? 0),
+    minOrderKg: Number(product.minOrderKg ?? base.minOrderKg ?? 0.3),
+    rating: Number(product.rating ?? base.rating ?? 4.8),
+    reviewCount: Number(product.reviewCount ?? base.reviewCount ?? 0),
+  };
+}
+
 function getDefaultAdminAuth(): AdminAuthState {
   return {
     sessions: [],
@@ -337,18 +385,9 @@ export async function mutateAppData(
 
 export function normalizeAppData(state?: Partial<AppDataState>): AppDataState {
   const defaults = getDefaultAppData();
-  const products = (state?.products?.length ? state.products : defaults.products).map((product) => {
-    const base = defaults.products.find((item) => item.id === product.id) ?? withDefaults(product);
-    return {
-      ...base,
-      ...product,
-      enabled: product.enabled ?? true,
-      stockKg: Number(product.stockKg ?? base.stockKg ?? 0),
-      minOrderKg: Number(product.minOrderKg ?? base.minOrderKg ?? 0.3),
-      rating: Number(product.rating ?? base.rating ?? 4.8),
-      reviewCount: Number(product.reviewCount ?? base.reviewCount ?? 0),
-    };
-  });
+  const products = (state?.products?.length ? state.products : defaults.products).map((product) =>
+    normalizeProduct(product, defaults.products),
+  );
 
   return {
     products,

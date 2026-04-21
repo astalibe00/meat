@@ -28,7 +28,7 @@ export function ProductDetailScreen() {
   const navigate = useApp((state) => state.navigate);
   const toggleFavorite = useApp((state) => state.toggleFavorite);
   const favorites = useApp((state) => state.favorites);
-  const products = useApp((state) => state.products.filter((product) => product.enabled));
+  const products = useApp((state) => state.products.filter((product) => product.enabled !== false));
   const getProductById = useApp((state) => state.getProductById);
   const getProductReviews = useApp((state) => state.getProductReviews);
 
@@ -67,6 +67,8 @@ export function ProductDetailScreen() {
   }
 
   const onSale = Boolean(product.oldPrice);
+  const safeImage = product.image || "/placeholder.svg";
+  const safeTags = Array.isArray(product.tags) ? product.tags : [];
   const selectedWeight = weight ?? product.weight;
   const selectedKg = getLineWeightKg(selectedWeight, product.weight);
   const maxUnits = getProductMaxUnits(product.stockKg, selectedWeight, product.weight);
@@ -104,7 +106,7 @@ export function ProductDetailScreen() {
   return (
     <div className="animate-screen-in pb-24 bg-background min-h-full">
       <div className="relative bg-paper aspect-[4/3.6]">
-        <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+        <img src={safeImage} alt={product.name} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background/30 via-transparent to-transparent" />
 
         <button
@@ -154,7 +156,7 @@ export function ProductDetailScreen() {
         <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-foreground/15" />
 
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {product.tags.map((tag) => (
+          {safeTags.map((tag) => (
             <ProductBadge key={tag} label={tag} />
           ))}
         </div>

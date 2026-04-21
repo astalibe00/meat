@@ -14,6 +14,7 @@ import {
   cancelOrderRequest,
   deleteProduct,
   fetchAppState,
+  fetchCatalogProducts,
   reverseGeocode,
   saveCustomerProfile,
   saveProduct,
@@ -203,6 +204,36 @@ const SEED_PRODUCTS: ManagedProduct[] = PRODUCTS.map((product) => ({
   reviewCount: 0,
 }));
 
+function normalizeManagedProduct(product: Partial<ManagedProduct>, fallback: ManagedProduct[] = SEED_PRODUCTS) {
+  const base = fallback.find((item) => item.id === product.id) ?? fallback[0];
+  return {
+    ...base,
+    ...product,
+    id: product.id?.trim() || base?.id || `product-${Date.now()}`,
+    name: product.name?.trim() || base?.name || "Yangi mahsulot",
+    price: Number(product.price ?? base?.price ?? 0),
+    oldPrice: product.oldPrice ? Number(product.oldPrice) : base?.oldPrice,
+    weight: product.weight?.trim() || base?.weight || "1 kg",
+    category: product.category ?? base?.category ?? "beef",
+    image: product.image?.trim() || base?.image || "/placeholder.svg",
+    tags: Array.isArray(product.tags) && product.tags.length > 0 ? product.tags : base?.tags ?? ["Fresh"],
+    description: product.description?.trim() || base?.description || "Tavsif kiritilmagan.",
+    weightOptions:
+      Array.isArray(product.weightOptions) && product.weightOptions.length > 0
+        ? product.weightOptions
+        : base?.weightOptions?.length
+          ? base.weightOptions
+          : [product.weight?.trim() || base?.weight || "1 kg"],
+    origin: product.origin?.trim() || base?.origin,
+    prepTime: product.prepTime?.trim() || base?.prepTime,
+    stockKg: Number(product.stockKg ?? base?.stockKg ?? 0),
+    minOrderKg: Number(product.minOrderKg ?? base?.minOrderKg ?? 0.3),
+    enabled: product.enabled ?? base?.enabled ?? true,
+    rating: Number(product.rating ?? base?.rating ?? 4.8),
+    reviewCount: Number(product.reviewCount ?? base?.reviewCount ?? 0),
+  } as ManagedProduct;
+}
+
 function isSameScreen(a: Screen, b: Screen) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -251,17 +282,10 @@ function mergeProfileIntoCheckout(
 function toManagedProduct(product: ManagedProduct | Product, currentProducts: ManagedProduct[]) {
   const matched = currentProducts.find((item) => item.id === product.id);
   if (matched) {
-    return matched;
+    return normalizeManagedProduct(matched, currentProducts);
   }
 
-  return {
-    ...product,
-    stockKg: 12,
-    minOrderKg: 0.3,
-    enabled: true,
-    rating: 4.8,
-    reviewCount: 0,
-  } as ManagedProduct;
+  return normalizeManagedProduct(product as Partial<ManagedProduct>, currentProducts);
 }
 
 function getOrderIndex(orders: CustomerOrder[], orderId: string) {
@@ -379,7 +403,7 @@ export const useApp = create<AppState>()(
           set({
             products:
               response.products && response.products.length > 0
-                ? response.products
+                ? response.products.map((product) => normalizeManagedProduct(product, current.products))
                 : current.products,
             pickupPoints,
             orders: response.orders ?? current.orders,
@@ -389,10 +413,27 @@ export const useApp = create<AppState>()(
             isSyncing: false,
           });
         } catch (error) {
-          set({
-            isSyncing: false,
-            syncError: error instanceof Error ? error.message : "Ma'lumotlar yuklanmadi",
-          });
+          try {
+            const fallback = await fetchCatalogProducts();
+            set({
+              products:
+                fallback.products && fallback.products.length > 0
+                  ? fallback.products.map((product) => normalizeManagedProduct(product, current.products))
+                  : current.products,
+              isSyncing: false,
+              syncError: undefined,
+            });
+          } catch (fallbackError) {
+            set({
+              isSyncing: false,
+              syncError:
+                fallbackError instanceof Error
+                  ? fallbackError.message
+                  : error instanceof Error
+                    ? error.message
+                    : "Ma'lumotlar yuklanmadi",
+            });
+          }
         }
       },
       addToCart: (product, qty = 1, weightOption) => {
