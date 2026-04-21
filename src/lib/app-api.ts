@@ -69,7 +69,7 @@ export function markNotificationsReadRequest(payload: {
   notificationIds?: string[];
 }) {
   return requestJson<{ ok: boolean; notifications?: CustomerNotification[]; unreadCount?: number }>(
-    `/api/notifications`,
+    `/api/app-state`,
     {
       method: "PATCH",
       headers: {

@@ -1,4 +1,4 @@
-import type { CustomerOrder, ManagedProduct } from "@/types/app-data";
+import type { CustomerOrder, ManagedProduct } from "../types/app-data";
 
 const CATEGORY_SYNONYMS: Record<ManagedProduct["category"], string[]> = {
   beef: ["mol", "beef", "steyk", "steak", "qiyma", "ribay"],

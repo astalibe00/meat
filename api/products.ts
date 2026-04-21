@@ -74,7 +74,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
               title: "Admin yangilanishi",
               body: `${nextProduct.name} mahsuloti katalogda yangilandi.`,
               createdAt: new Date().toISOString(),
-              audience: "all",
+              audience: "all" as const,
               sentCount: 0,
             },
             ...state.broadcasts,
