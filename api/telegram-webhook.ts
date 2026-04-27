@@ -148,6 +148,64 @@ async function sendSingleOrderStatus(chatId: number | string, orderId: string, t
   );
 }
 
+function buildMiniAppUrl(params?: Record<string, string>) {
+  const webAppUrl = getWebAppUrl();
+  if (!webAppUrl) {
+    return "";
+  }
+
+  const url = new URL(webAppUrl);
+  for (const [key, value] of Object.entries(params ?? {})) {
+    url.searchParams.set(key, value);
+  }
+
+  return url.toString();
+}
+
+async function sendRepeatLastOrder(chatId: number | string, telegramUserId?: number) {
+  if (!telegramUserId) {
+    await sendMessage(chatId, "Oxirgi buyurtmani topish uchun avval Mini Appni bot orqali oching.", {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  const state = await readAppData();
+  const order = state.orders.find((item) => item.customer.telegramUserId === telegramUserId);
+  if (!order) {
+    await sendMessage(chatId, "Qayta buyurtma qilish uchun avval bitta buyurtma yarating.", {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  const repeatUrl = buildMiniAppUrl({ repeatOrder: order.id });
+  if (!repeatUrl) {
+    await sendMessage(chatId, "Mini App URL sozlanmagan. /menu orqali qayta urinib ko'ring.", {
+      reply_markup: mainInlineKeyboard(),
+    });
+    return;
+  }
+
+  await sendMessage(
+    chatId,
+    [
+      "Oxirgi buyurtmani qayta qo'shish",
+      "",
+      `${order.id} - ${new Intl.NumberFormat("uz-UZ").format(Math.round(order.total))} UZS`,
+      "Mini App ochilganda mahsulotlar savatga qo'shiladi.",
+    ].join("\n"),
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "Savatga qayta qo'shish", web_app: { url: repeatUrl } }],
+          [{ text: "Asosiy menyu", callback_data: "menu:start" }],
+        ],
+      },
+    },
+  );
+}
+
 async function sendCustomerNotifications(chatId: number | string, telegramUserId?: number) {
   if (!telegramUserId) {
     await sendMessage(chatId, "Avval bot orqali profilingizni oching yoki telefoningizni ulashing.", {
@@ -187,6 +245,10 @@ async function routeText(chatId: number | string, text: string, telegramUserId?:
 
   if (normalized === "/shop" || normalized === "shop" || normalized === "katalog") {
     return sendShop(chatId);
+  }
+
+  if (normalized === "/repeat" || normalized === "qayta buyurtma") {
+    return sendRepeatLastOrder(chatId, telegramUserId);
   }
 
   if (normalized === "/deals" || normalized === "deals" || normalized === "aksiyalar") {
@@ -265,7 +327,7 @@ async function routeText(chatId: number | string, text: string, telegramUserId?:
 
   return sendMessage(
     chatId,
-    "Mini App, Katalog, Buyurtmalarim, Xabarlarim, Aksiyalar, Yetkazib berish, Yordam yoki Telefonni ulashish tugmalaridan foydalaning.",
+    "Mini App, Buyurtmalarim yoki Yordam tugmalaridan foydalaning. /repeat oxirgi buyurtmani qayta ochadi.",
     {
       reply_markup: mainReplyKeyboard(),
     },

@@ -4,9 +4,11 @@ import type {
   CustomerNotification,
   CustomerOrder,
   CustomerProfile,
+  DeliverySlot,
   GeoPoint,
   ManagedProduct,
   PaymentMethod,
+  PaymentReceipt,
   PickupPoint,
   Review,
 } from "@/types/app-data";
@@ -114,6 +116,7 @@ export function submitOrder(payload: {
   notes?: string;
   paymentMethod: PaymentMethod;
   paymentReference?: string;
+  paymentReceipt?: PaymentReceipt;
   promoCode?: string;
   customer: {
     name: string;
@@ -123,6 +126,7 @@ export function submitOrder(payload: {
     coordinates?: GeoPoint;
     pickupPointId?: string;
     fulfillmentType: "delivery" | "pickup";
+    deliverySlot?: DeliverySlot;
   };
   items: Array<{
     productId: string;
@@ -165,6 +169,30 @@ export function updateOrderStatusRequest(orderId: string, status: string, adminT
       orderId,
       status,
     }),
+  });
+}
+
+export function requestSupport(payload: {
+  topic?: string;
+  message: string;
+  latestOrderId?: string;
+  source?: string;
+  customer?: {
+    name?: string;
+    phone?: string;
+    address?: string;
+  };
+  telegramUser?: {
+    id?: number;
+    username?: string;
+  };
+}) {
+  return requestJson<{ ok: boolean; notified?: number }>(`/api/support-request`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
   });
 }
 

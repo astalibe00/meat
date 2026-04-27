@@ -86,8 +86,7 @@ export function buildDeliveryMessage() {
   return [
     "Yetkazib berish",
     "",
-    "- 14:00 gacha berilgan buyurtmalar shu kuni jo'natiladi",
-    "- Yetkazish vaqtini mijoz tanlamaydi, admin oqimni boshqaradi",
+    "- Checkout ichida Bugun yoki Ertaga tanlanadi",
     "- Tarqatish punktidan olib ketish ham mavjud",
     "- Holat yangilanishlari Mini App va botda ko'rinadi",
     "",
@@ -111,8 +110,8 @@ export function buildWelcomeMessage(webAppAvailable: boolean) {
   return [
     "Fresh Halal Direct",
     "",
-    "Telegram ichida tez, minimal va qulay buyurtma oqimi.",
-    "Quyidagi menyudan katalog, aksiyalar, yetkazib berish yoki yordam bo'limini tanlang.",
+    "Tez buyurtma uchun Mini Appni oching.",
+    "Bot buyurtma holati, qayta buyurtma va support xabarlarini yuritadi.",
     webAppAvailable
       ? "Mini App eng tez rasmiylashtirish yo'lini ochadi."
       : "Mini App tugmasi deploy URL sozlangach ishlaydi.",
@@ -124,15 +123,12 @@ export function buildHelpMessage() {
     "Bot buyruqlari",
     "",
     "/menu - asosiy menyu",
-    "/shop - katalog bo'limlari",
     "/orders - buyurtmalarim",
-    "/messages - xabarlarim",
+    "/repeat - oxirgi buyurtmani Mini App savatiga qayta qo'shish",
     "/status BUYURTMA_ID - aniq buyurtma holati",
-    "/search so'rov - mahsulot qidirish",
-    "/top - eng ko'p so'ralayotgan mahsulotlar",
     "/support - support kontaktlari",
     "",
-    "To'liq checkout va tez rasmiylashtirish uchun Mini App tugmasidan foydalaning.",
+    "Katalog, qidiruv, promo va checkout Mini App ichida.",
   ].join("\n");
 }
 

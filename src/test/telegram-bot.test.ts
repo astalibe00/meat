@@ -40,8 +40,8 @@ describe("telegram bot copy", () => {
   });
 
   it("supports help and search responses", () => {
-    expect(buildHelpMessage()).toContain("/search");
-    expect(buildHelpMessage()).toContain("/messages");
+    expect(buildHelpMessage()).toContain("/repeat");
+    expect(buildHelpMessage()).toContain("/orders");
     expect(buildSearchResultsMessage(managedProducts, "ribay")).toContain("Mol ribay steyki");
   });
 

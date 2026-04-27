@@ -31,7 +31,12 @@ import {
   verifyAdminCode,
 } from "@/lib/app-api";
 import { formatCurrency, formatDate, formatTime } from "@/lib/format";
-import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/order-status";
+import {
+  DELIVERY_SLOT_LABELS,
+  ORDER_STATUS_LABELS,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_STATUS_LABELS,
+} from "@/lib/order-status";
 import type { BroadcastAudience, ManagedProduct, OrderStatus } from "@/types/app-data";
 
 const ADMIN_TOKEN_KEY = "fresh-halal-admin-token";
@@ -471,6 +476,21 @@ export default function AdminPage() {
                         <p className="text-[11px] text-muted-foreground">{ORDER_STATUS_LABELS[order.status]}</p>
                         {order.paymentReference && (
                           <p className="mt-1 text-[11px] text-muted-foreground">{order.paymentReference}</p>
+                        )}
+                        {order.customer.deliverySlot && (
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            Vaqt: {DELIVERY_SLOT_LABELS[order.customer.deliverySlot]}
+                          </p>
+                        )}
+                        {order.paymentReceipt?.dataUrl && (
+                          <a
+                            href={order.paymentReceipt.dataUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-flex text-[11px] font-semibold text-primary"
+                          >
+                            Chekni ko'rish
+                          </a>
                         )}
                       </div>
                     </div>

@@ -40,10 +40,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     await telegramApi("setMyCommands", {
       commands: [
         { command: "start", description: "Asosiy menyu" },
-        { command: "shop", description: "Kategoriyalar" },
-        { command: "deals", description: "Joriy aksiyalar" },
-        { command: "delivery", description: "Yetkazib berish" },
-        { command: "support", description: "Yordam va support" },
+        { command: "orders", description: "Buyurtmalarim" },
+        { command: "repeat", description: "Oxirgi buyurtmani qayta qo'shish" },
+        { command: "support", description: "Yordam" },
       ],
     });
 

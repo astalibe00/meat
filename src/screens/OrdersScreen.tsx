@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/app/EmptyState";
 import { formatCurrency, formatDate, formatTime } from "@/lib/format";
 import {
+  DELIVERY_SLOT_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -17,6 +18,7 @@ export function OrdersScreen() {
   const cancelOrder = useApp((state) => state.cancelOrder);
   const submitReview = useApp((state) => state.submitReview);
   const repeatOrder = useApp((state) => state.repeatOrder);
+  const requestOrderSupport = useApp((state) => state.requestOrderSupport);
 
   if (orders.length === 0) {
     return (
@@ -91,6 +93,15 @@ export function OrdersScreen() {
 
               toast.success(result.message);
             }}
+            onSupport={async () => {
+              const result = await requestOrderSupport(order.id);
+              if (!result.ok) {
+                toast.error(result.error ?? "Support so'rovi yuborilmadi.");
+                return;
+              }
+
+              toast.success("Support so'rovi yuborildi.");
+            }}
           />
         ))}
       </div>
@@ -103,11 +114,13 @@ function OrderCard({
   onCancel,
   onReview,
   onRepeat,
+  onSupport,
 }: {
   order: CustomerOrder;
   onCancel: () => Promise<void>;
   onReview: (rating: number, comment?: string) => Promise<void>;
   onRepeat: () => void;
+  onSupport: () => Promise<void>;
 }) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -116,6 +129,7 @@ function OrderCard({
   const canCancel = !["completed", "cancelled"].includes(order.status);
   const canReview = order.status === "completed" && (order.reviewIds?.length ?? 0) === 0;
   const canRepeat = order.items.length > 0;
+  const [supportBusy, setSupportBusy] = useState(false);
   const headlineEvent = useMemo(
     () => order.statusHistory[order.statusHistory.length - 1],
     [order.statusHistory],
@@ -152,6 +166,11 @@ function OrderCard({
         <p className="mt-1 text-xs text-muted-foreground">
           {PAYMENT_STATUS_LABELS[order.paymentStatus]}
         </p>
+        {order.customer.deliverySlot && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Vaqt: {DELIVERY_SLOT_LABELS[order.customer.deliverySlot]}
+          </p>
+        )}
         {order.paymentCardNumber && (
           <p className="mt-1 text-xs text-muted-foreground">
             P2P karta: {order.paymentCardNumber}
@@ -248,6 +267,16 @@ function OrderCard({
               Qayta buyurtma
             </button>
           )}
+          <button
+            onClick={async () => {
+              setSupportBusy(true);
+              await onSupport();
+              setSupportBusy(false);
+            }}
+            className="tap h-10 px-4 rounded-full bg-paper border border-border text-sm font-semibold active:scale-95 transition-transform"
+          >
+            {supportBusy ? "Yuborilmoqda..." : "Yordam kerak"}
+          </button>
         </div>
       )}
 

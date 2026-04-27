@@ -1,263 +1,229 @@
-import {
-  BadgeCheck,
-  ChevronRight,
-  Clock,
-  Flame,
-  Leaf,
-  Search,
-  Sparkles,
-  Truck,
-} from "lucide-react";
-import { useMemo } from "react";
-import { useApp } from "@/store/useApp";
-import {
-  CATEGORIES,
-  FREE_SHIPPING_THRESHOLD,
-} from "@/data/products";
+import { CalendarDays, ChevronRight, Search, Users } from "lucide-react";
+import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { CATEGORIES } from "@/data/products";
 import { ProductCard } from "@/components/app/ProductCard";
-import { SectionHeader } from "@/components/app/SectionHeader";
-import { getPersonalizedProducts } from "@/lib/catalog-intelligence";
 import { formatCurrency } from "@/lib/format";
-import banner1 from "@/assets/banners/banner-1.jpg";
-import banner2 from "@/assets/banners/banner-2.jpg";
-import banner3 from "@/assets/banners/banner-3.jpg";
+import { useApp } from "@/store/useApp";
 
-const banners = [
-  {
-    id: 1,
-    img: banner1,
-    eyebrow: "Shu hafta",
-    title: "Premium bo'laklar,\nhar kuni yangi tayyorlanadi",
-    cta: "Premiumni ko'rish",
-    accent: "from-foreground/85 via-foreground/45",
-    action: { name: "categories", category: "beef" } as const,
-  },
-  {
-    id: 2,
-    img: banner2,
-    eyebrow: "Dam olish kuni",
-    title: "Butun go'shtlarda\n25% gacha chegirma",
-    cta: "Takliflarni ko'rish",
-    accent: "from-sale/85 via-sale/40",
-    action: { name: "categories", saleOnly: true } as const,
-  },
-  {
-    id: 3,
-    img: banner3,
-    eyebrow: "Bepul yetkazish",
-    title: `Har bir buyurtmada\n${formatCurrency(FREE_SHIPPING_THRESHOLD)} dan boshlab`,
-    cta: "Xaridni boshlash",
-    accent: "from-primary/90 via-primary/45",
-    action: { name: "categories" } as const,
-  },
-];
-
-const TRUST_PILLS = [
-  { Icon: BadgeCheck, label: "Halol sertifikat" },
-  { Icon: Leaf, label: "Tozalab kesilgan" },
-  { Icon: Truck, label: "Bir kunda" },
-  { Icon: Clock, label: "Buyurtmaga tayyor" },
-];
+const PEOPLE_OPTIONS = [2, 4, 6];
+const DAY_OPTIONS = [2, 4, 7];
 
 export function HomeScreen() {
   const navigate = useApp((state) => state.navigate);
+  const addToCart = useApp((state) => state.addToCart);
+  const cartCount = useApp((state) => state.cartCount());
+  const getCartPricing = useApp((state) => state.cartPricing);
   const products = useApp((state) => state.products);
-  const favorites = useApp((state) => state.favorites);
-  const orders = useApp((state) => state.orders);
-  const popular = products.filter((product) => product.tags.includes("Popular"));
-  const sale = products.filter((product) => Boolean(product.oldPrice));
-  const fresh = products.filter((product) => product.tags.includes("Fresh"));
-  const forYou = useMemo(
-    () => getPersonalizedProducts(products, favorites, orders, 4),
-    [favorites, orders, products],
+  const [people, setPeople] = useState(4);
+  const [days, setDays] = useState(4);
+
+  const enabledProducts = useMemo(
+    () => products.filter((product) => product.enabled !== false),
+    [products],
   );
+  const heroProducts = useMemo(
+    () =>
+      [...enabledProducts]
+        .sort((left, right) => {
+          const popularScore =
+            Number(right.tags.includes("Popular")) - Number(left.tags.includes("Popular"));
+          return popularScore || left.price - right.price;
+        })
+        .slice(0, 8),
+    [enabledProducts],
+  );
+  const familyBox =
+    enabledProducts.find((product) => product.id === "family-box") ??
+    enabledProducts.find((product) => product.category === "bundles");
+  const estimatedBudget = Math.max(1, people) * Math.max(1, days) * 65000;
+  const pricing = getCartPricing();
+
+  const handleFamilySet = () => {
+    if (!familyBox) {
+      navigate({ name: "categories", category: "bundles" });
+      return;
+    }
+
+    const qty = people >= 6 || days >= 7 ? 2 : 1;
+    const result = addToCart(familyBox, qty, familyBox.weightOptions?.[0] ?? familyBox.weight);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Oilaviy set savatga qo'shildi", {
+      description: `${qty} x ${familyBox.name}`,
+      duration: 1600,
+    });
+  };
 
   return (
-    <div className="animate-screen-in pb-6">
-      <div className="px-5 pt-4 pb-3">
-        <p className="text-xs text-muted-foreground font-medium">Yangi halol yetkazib berish</p>
-        <h1 className="font-serif text-[28px] leading-[1.05] font-semibold tracking-tight mt-1 text-balance">
-          Yangi halol go'sht,
-          <br />
-          <span className="italic text-primary">eshigingizgacha yetkaziladi.</span>
-        </h1>
-      </div>
-
-      <div className="px-5">
-        <button
-          onClick={() => navigate({ name: "search" })}
-          className="tap w-full h-12 rounded-full bg-surface shadow-card flex items-center gap-3 pl-4 pr-2 text-left active:scale-[0.99] transition-transform border border-border/50"
-        >
-          <Search className="w-4 h-4 text-foreground/50" strokeWidth={2.5} />
-          <span className="text-sm text-muted-foreground flex-1">
-            Mol, qo'y, tovuq mahsulotlarini qidiring...
-          </span>
-          <span className="w-9 h-9 rounded-full bg-primary text-primary-foreground grid place-items-center">
-            <Sparkles className="w-3.5 h-3.5" strokeWidth={2.5} />
-          </span>
-        </button>
-
-        <div className="mt-3 grid grid-cols-4 gap-1.5">
-          {TRUST_PILLS.map(({ Icon, label }) => (
-            <div
-              key={label}
-              className="flex flex-col items-center gap-1 py-2 rounded-xl bg-primary-soft/60"
-            >
-              <Icon className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              <span className="text-[9.5px] font-semibold text-primary-soft-foreground leading-none text-center px-0.5">
-                {label}
-              </span>
-            </div>
-          ))}
+    <div className="animate-screen-in px-5 pt-4 pb-24">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+            Fresh Halal
+          </p>
+          <h1 className="mt-1 font-serif text-[28px] leading-tight font-semibold tracking-tight">
+            Bugungi xarid
+          </h1>
         </div>
+        <button
+          onClick={() => navigate({ name: "categories", saleOnly: true })}
+          className="tap h-9 rounded-full bg-sale/10 px-3 text-xs font-bold text-sale active:scale-95 transition-transform"
+        >
+          Aksiyalar
+        </button>
       </div>
 
-      <div className="mt-5 overflow-x-auto no-scrollbar">
-        <div className="flex gap-3 px-5 pb-1">
-          {banners.map((banner) => (
+      <button
+        onClick={() => navigate({ name: "search" })}
+        className="tap mt-4 flex h-12 w-full items-center gap-3 rounded-2xl border border-border/60 bg-surface px-4 text-left shadow-xs active:scale-[0.99] transition-transform"
+      >
+        <Search className="h-4 w-4 text-muted-foreground" strokeWidth={2.5} />
+        <span className="flex-1 text-sm font-medium text-muted-foreground">
+          Mahsulot qidirish
+        </span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={2.5} />
+      </button>
+
+      <div className="mt-4 overflow-x-auto no-scrollbar -mx-5">
+        <div className="flex gap-2 px-5 pb-1">
+          <button
+            onClick={() => navigate({ name: "categories" })}
+            className="tap h-10 shrink-0 rounded-full bg-foreground px-4 text-xs font-bold text-background active:scale-95 transition-transform"
+          >
+            Barchasi
+          </button>
+          {CATEGORIES.map((category) => (
             <button
-              key={banner.id}
-              onClick={() => navigate(banner.action)}
-              className="tap shrink-0 w-[296px] h-[160px] rounded-3xl overflow-hidden relative shadow-card text-left"
+              key={category.id}
+              onClick={() => navigate({ name: "categories", category: category.id })}
+              className="tap h-10 shrink-0 rounded-full border border-border bg-surface px-4 text-xs font-bold active:scale-95 transition-transform"
             >
-              <img
-                src={banner.img}
-                alt={banner.title.replace("\n", " ")}
-                className="absolute inset-0 w-full h-full object-cover"
-                loading="lazy"
-              />
-              <div className={`absolute inset-0 bg-gradient-to-tr ${banner.accent} to-transparent`} />
-              <div className="absolute inset-0 p-5 flex flex-col justify-end text-primary-foreground">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-90 mb-1.5">
-                  {banner.eyebrow}
-                </p>
-                <h3 className="font-serif text-[22px] leading-[1.05] font-semibold whitespace-pre-line text-balance">
-                  {banner.title}
-                </h3>
-                <span className="mt-2.5 inline-flex items-center text-[11px] font-bold w-fit">
-                  {banner.cta}
-                  <ChevronRight className="w-3.5 h-3.5 -mr-1" strokeWidth={2.5} />
-                </span>
-              </div>
+              {category.name}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="mt-7">
-        <SectionHeader
-          eyebrow="Bo'limlar"
-          title="Kategoriyalar"
-          onSeeAll={() => navigate({ name: "categories" })}
-        />
-        <div className="overflow-x-auto no-scrollbar">
-          <div className="flex gap-3 px-5 pb-1">
-            {CATEGORIES.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => navigate({ name: "categories", category: category.id })}
-                className="tap shrink-0 w-[72px] flex flex-col items-center gap-2 active:scale-95 transition-transform"
-              >
-                <span className="w-16 h-16 rounded-2xl bg-surface grid place-items-center text-3xl shadow-card border border-border/40">
-                  {category.emoji}
-                </span>
-                <span className="text-[11px] font-semibold text-foreground leading-tight text-center">
-                  {category.name}
-                </span>
-              </button>
-            ))}
+      <section className="mt-5 rounded-2xl bg-surface p-4 shadow-card">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold">Oilaviy set tavsiyasi</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Odam soni va kun bo'yicha tayyor set qo'shing.
+            </p>
           </div>
+          <span className="rounded-full bg-primary-soft px-3 py-1 text-[11px] font-bold text-primary">
+            ~{formatCurrency(estimatedBudget)}
+          </span>
         </div>
-      </div>
 
-      <div className="mt-7">
-        <SectionHeader
-          eyebrow="Mijozlar tanlovi"
-          title="Shu haftaning mashhurlari"
-          onSeeAll={() => navigate({ name: "categories", sort: "popular" })}
-        />
-        <div className="overflow-x-auto no-scrollbar">
-          <div className="flex gap-3 px-5 pb-1">
-            {popular.map((product) => (
-              <ProductCard key={product.id} product={product} variant="horizontal" />
-            ))}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <Picker
+            icon={<Users className="h-4 w-4" strokeWidth={2.25} />}
+            label="Odam"
+            value={people}
+            options={PEOPLE_OPTIONS}
+            suffix="ta"
+            onChange={setPeople}
+          />
+          <Picker
+            icon={<CalendarDays className="h-4 w-4" strokeWidth={2.25} />}
+            label="Kun"
+            value={days}
+            options={DAY_OPTIONS}
+            suffix="kun"
+            onChange={setDays}
+          />
+        </div>
+
+        <button
+          onClick={handleFamilySet}
+          className="tap mt-4 h-11 w-full rounded-2xl bg-primary text-sm font-bold text-primary-foreground shadow-fab active:scale-[0.98] transition-transform"
+        >
+          Setni savatga qo'shish
+        </button>
+      </section>
+
+      <section className="mt-6">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+              Katalog
+            </p>
+            <h2 className="font-serif text-[22px] font-semibold leading-tight">
+              Ko'p olinadiganlar
+            </h2>
           </div>
+          <button
+            onClick={() => navigate({ name: "categories" })}
+            className="tap text-xs font-bold text-primary active:scale-95 transition-transform"
+          >
+            Hammasi
+          </button>
         </div>
-      </div>
-
-      {forYou.length > 0 && (
-        <div className="mt-7 px-5">
-          <SectionHeader eyebrow="Siz uchun" title="Shaxsiy tavsiyalar" inline />
-          <div className="grid grid-cols-2 gap-3 mt-1">
-            {forYou.map((product) => (
-              <ProductCard key={product.id} product={product} variant="grid" />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-7">
-        <SectionHeader
-          eyebrow="Cheklangan vaqt"
-          title="Aksiyadagi mahsulotlar"
-          onSeeAll={() => navigate({ name: "categories", saleOnly: true })}
-        />
-        <div className="overflow-x-auto no-scrollbar">
-          <div className="flex gap-3 px-5 pb-1">
-            {sale.map((product) => (
-              <ProductCard key={product.id} product={product} variant="horizontal" />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-7 px-5">
-        <SectionHeader eyebrow="Bugun tayyor" title="Yangi kelganlar" inline />
-        <div className="grid grid-cols-2 gap-3 mt-1">
-          {fresh.slice(0, 4).map((product) => (
+        <div className="grid grid-cols-2 gap-3">
+          {heroProducts.map((product) => (
             <ProductCard key={product.id} product={product} variant="grid" />
           ))}
         </div>
-      </div>
+      </section>
 
-      <div className="mt-7 mx-5 rounded-3xl bg-foreground text-background p-6 relative overflow-hidden shadow-elevated">
-        <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-primary/20 blur-2xl" />
-        <div className="relative">
-          <span className="chip bg-primary text-primary-foreground mb-3">
-            <BadgeCheck className="w-3 h-3" strokeWidth={3} />
-            Sertifikatlangan
-          </span>
-          <h3 className="font-serif text-[22px] leading-tight font-semibold mb-1.5">
-            100% halol,
-            <br />
-            murosasiz sifat.
-          </h3>
-          <p className="text-xs text-background/70 leading-relaxed max-w-[280px]">
-            Har bir mahsulot halol sertifikatli, ishonchli manbadan olingan va bir kunlik
-            yetkazib berishga tayyorlanadi.
-          </p>
-          <div className="mt-4 flex items-center gap-3 text-[11px] font-semibold">
-            <span className="flex items-center gap-1.5">
-              <BadgeCheck className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              Halol
-            </span>
-            <span className="w-px h-3 bg-background/20" />
-            <span className="flex items-center gap-1.5">
-              <Leaf className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              Toza manba
-            </span>
-            <span className="w-px h-3 bg-background/20" />
-            <span className="flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              Qo'lda kesilgan
-            </span>
-          </div>
+      {cartCount > 0 && (
+        <div className="sticky bottom-3 z-10 mt-6 rounded-2xl bg-foreground p-3 text-background shadow-elevated">
+          <button
+            onClick={() => navigate({ name: "cart" })}
+            className="tap flex h-11 w-full items-center justify-between gap-3 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground active:scale-[0.98] transition-transform"
+          >
+            <span>Savatda {cartCount} ta mahsulot</span>
+            <span>{formatCurrency(pricing.total)}</span>
+          </button>
         </div>
-      </div>
+      )}
+    </div>
+  );
+}
 
-      <p className="text-center text-[10px] text-muted-foreground font-medium tracking-[0.2em] uppercase mt-8 mb-2">
-        Fresh Halal Direct - Bir kunlik yetkazish
+function Picker({
+  icon,
+  label,
+  value,
+  options,
+  suffix,
+  onChange,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  options: number[];
+  suffix: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="rounded-2xl bg-paper p-3">
+      <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        {icon}
+        {label}
       </p>
+      <div className="mt-2 flex gap-1.5">
+        {options.map((option) => (
+          <button
+            key={option}
+            onClick={() => onChange(option)}
+            className={`tap h-8 flex-1 rounded-full text-[11px] font-bold active:scale-95 transition-transform ${
+              value === option
+                ? "bg-foreground text-background"
+                : "bg-surface text-foreground"
+            }`}
+          >
+            {option} {suffix}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

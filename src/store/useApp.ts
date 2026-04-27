@@ -17,6 +17,7 @@ import {
   fetchCatalogProducts,
   markNotificationsReadRequest,
   reverseGeocode,
+  requestSupport,
   saveCustomerProfile,
   saveProduct,
   sendBroadcast,
@@ -35,11 +36,13 @@ import type {
   CustomerNotification,
   CustomerOrder,
   CustomerProfile,
+  DeliverySlot,
   FulfillmentType,
   GeoPoint,
   ManagedProduct,
   OrderStatus,
   PaymentMethod,
+  PaymentReceipt,
   PickupPoint,
   Review,
 } from "@/types/app-data";
@@ -76,6 +79,8 @@ export interface CheckoutForm {
   pickupPointId: string;
   paymentMethod: PaymentMethod;
   paymentReference: string;
+  paymentReceipt?: PaymentReceipt;
+  deliverySlot: DeliverySlot;
   coordinates?: GeoPoint;
 }
 
@@ -133,6 +138,7 @@ interface AppState {
     rating: number;
     comment?: string;
   }) => Promise<{ ok: boolean; error?: string }>;
+  requestOrderSupport: (orderId: string, message?: string) => Promise<{ ok: boolean; error?: string }>;
   saveManagedProduct: (payload: Partial<ManagedProduct>) => Promise<{ ok: boolean; error?: string }>;
   deleteManagedProduct: (productId: string) => Promise<{ ok: boolean; error?: string }>;
   broadcastMessage: (title: string, body: string) => Promise<{ ok: boolean; error?: string }>;
@@ -171,6 +177,8 @@ const DEFAULT_CHECKOUT: CheckoutForm = {
   pickupPointId: "",
   paymentMethod: "click",
   paymentReference: "",
+  paymentReceipt: undefined,
+  deliverySlot: "today",
 };
 
 const DEFAULT_RECENT_SEARCHES = [
@@ -249,6 +257,12 @@ function isSameScreen(a: Screen, b: Screen) {
 function normalizeCheckout(checkout?: Partial<CheckoutForm>, pickupPoints: PickupPoint[] = []) {
   const basePickupPointId = checkout?.pickupPointId?.trim() || pickupPoints[0]?.id || "";
   const fulfillmentType = checkout?.fulfillmentType ?? "delivery";
+  const deliverySlot =
+    fulfillmentType === "pickup"
+      ? "pickup"
+      : checkout?.deliverySlot === "tomorrow"
+        ? "tomorrow"
+        : "today";
 
   return {
     ...DEFAULT_CHECKOUT,
@@ -258,10 +272,41 @@ function normalizeCheckout(checkout?: Partial<CheckoutForm>, pickupPoints: Picku
     phone: checkout?.phone?.trim() ?? "",
     notes: checkout?.notes?.trimStart() ?? "",
     paymentReference: checkout?.paymentReference?.trim() ?? "",
+    paymentReceipt: checkout?.paymentReceipt,
     pickupPointId: basePickupPointId,
     fulfillmentType,
     paymentMethod: checkout?.paymentMethod ?? DEFAULT_CHECKOUT.paymentMethod,
+    deliverySlot,
   };
+}
+
+function mergeFavoriteSaleNotifications(
+  current: CustomerNotification[],
+  products: ManagedProduct[],
+  favorites: string[],
+  telegramUserId?: number,
+) {
+  if (!favorites.length) {
+    return current;
+  }
+
+  const existingIds = new Set(current.map((notification) => notification.id));
+  const saleFavorites = products
+    .filter((product) => favorites.includes(product.id) && product.enabled !== false && product.oldPrice)
+    .slice(0, 3);
+
+  const additions = saleFavorites
+    .map((product) => ({
+      id: `favorite-sale-${product.id}`,
+      telegramUserId: telegramUserId ?? 0,
+      title: "Sevimli mahsulot aksiyada",
+      body: `${product.name} hozir chegirmada. Savatga qo'shib rasmiylashtirishingiz mumkin.`,
+      createdAt: new Date().toISOString(),
+      kind: "broadcast" as const,
+    }))
+    .filter((notification) => !existingIds.has(notification.id));
+
+  return [...additions, ...current];
 }
 
 function mergeProfileIntoCheckout(
@@ -409,14 +454,22 @@ export const useApp = create<AppState>()(
             pickupPoints,
           );
 
+          const products =
+            response.products && response.products.length > 0
+              ? response.products.map((product) => normalizeManagedProduct(product, current.products))
+              : current.products;
+          const remoteNotifications = response.notifications ?? current.notifications;
+
           set({
-            products:
-              response.products && response.products.length > 0
-                ? response.products.map((product) => normalizeManagedProduct(product, current.products))
-                : current.products,
+            products,
             pickupPoints,
             orders: response.orders ?? current.orders,
-            notifications: response.notifications ?? current.notifications,
+            notifications: mergeFavoriteSaleNotifications(
+              remoteNotifications,
+              products,
+              current.favorites,
+              resolvedTelegramUserId,
+            ),
             reviews: response.reviews ?? current.reviews,
             checkout,
             supportContact: response.support ?? current.supportContact,
@@ -669,10 +722,14 @@ export const useApp = create<AppState>()(
           return { ok: false, error: "Tarqatish punktini tanlang." };
         }
 
-        if (isOnlinePayment(checkout.paymentMethod) && !checkout.paymentReference.trim()) {
+        if (
+          isOnlinePayment(checkout.paymentMethod) &&
+          !checkout.paymentReference.trim() &&
+          !checkout.paymentReceipt
+        ) {
           return {
             ok: false,
-            error: "P2P to'lovdan keyin tranzaksiya izohi yoki oxirgi 4 raqamni kiriting.",
+            error: "P2P to'lovdan keyin chek rasmi yoki oxirgi 4 raqamni kiriting.",
           };
         }
 
@@ -697,6 +754,7 @@ export const useApp = create<AppState>()(
             notes: checkout.notes.trim(),
             paymentMethod: checkout.paymentMethod,
             paymentReference: checkout.paymentReference.trim(),
+            paymentReceipt: checkout.paymentReceipt,
             promoCode: state.promoCode,
             customer: {
               name: checkout.name.trim(),
@@ -706,6 +764,7 @@ export const useApp = create<AppState>()(
               coordinates: checkout.coordinates,
               pickupPointId: checkout.pickupPointId,
               fulfillmentType: checkout.fulfillmentType,
+              deliverySlot: checkout.deliverySlot,
             },
             items: state.cart.map((line) => ({
               productId: line.product.id,
@@ -737,6 +796,7 @@ export const useApp = create<AppState>()(
                   coordinates: checkout.coordinates,
                   pickupPointId: checkout.pickupPointId,
                   fulfillmentType: checkout.fulfillmentType,
+                  deliverySlot: checkout.deliverySlot,
                   notes: checkout.notes.trim(),
                 },
                 paymentMethod: checkout.paymentMethod,
@@ -744,6 +804,7 @@ export const useApp = create<AppState>()(
                   ? "9860350140942508"
                   : undefined,
                 paymentReference: checkout.paymentReference.trim() || undefined,
+                paymentReceipt: checkout.paymentReceipt,
                 paymentStatus: getInitialPaymentStatus(checkout.paymentMethod),
                 status: getInitialOrderStatus(checkout.paymentMethod),
                 statusHistory: [],
@@ -767,6 +828,7 @@ export const useApp = create<AppState>()(
                 ...current.checkout,
                 notes: "",
                 paymentReference: "",
+                paymentReceipt: undefined,
               },
               current.pickupPoints,
             ),
@@ -822,6 +884,61 @@ export const useApp = create<AppState>()(
           return {
             ok: false,
             error: error instanceof Error ? error.message : "Izoh saqlanmadi.",
+          };
+        }
+      },
+      requestOrderSupport: async (orderId, message) => {
+        const state = get();
+        const order = state.orders.find((item) => item.id === orderId);
+        if (!order) {
+          return { ok: false, error: "Buyurtma topilmadi." };
+        }
+
+        const body =
+          message?.trim() ||
+          `${order.id} buyurtmasi bo'yicha mijozga yordam kerak. Holat: ${order.status}.`;
+
+        try {
+          await requestSupport({
+            topic: "Buyurtma bo'yicha yordam",
+            message: body,
+            latestOrderId: order.id,
+            source: "mini-app-order",
+            customer: {
+              name: order.customer.name,
+              phone: order.customer.phone,
+              address: order.customer.address,
+            },
+            telegramUser: {
+              id: state.telegramUser?.id ?? order.customer.telegramUserId,
+              username: state.telegramUser?.username ?? order.customer.username,
+            },
+          });
+
+          set((current) => ({
+            orders: current.orders.map((item) =>
+              item.id === order.id
+                ? {
+                    ...item,
+                    supportRequests: [
+                      {
+                        id: `support-${Date.now()}`,
+                        message: body,
+                        createdAt: new Date().toISOString(),
+                        status: "open",
+                      },
+                      ...(item.supportRequests ?? []),
+                    ],
+                  }
+                : item,
+            ),
+          }));
+
+          return { ok: true };
+        } catch (error) {
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : "Support so'rovi yuborilmadi.",
           };
         }
       },
@@ -1006,7 +1123,10 @@ export const useApp = create<AppState>()(
         cart: state.cart,
         favorites: state.favorites,
         recentSearches: state.recentSearches,
-        checkout: state.checkout,
+        checkout: {
+          ...state.checkout,
+          paymentReceipt: undefined,
+        },
         promoCode: state.promoCode,
       }),
       migrate: (persistedState) => {

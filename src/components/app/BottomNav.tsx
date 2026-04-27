@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Home, LayoutGrid, Search, ShoppingBag, User } from "lucide-react";
+import { Home, PackageCheck, ShoppingBag, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useApp, type Screen } from "@/store/useApp";
 
 const tabs: { name: Screen["name"]; label: string; Icon: typeof Home }[] = [
-  { name: "home", label: "Bosh sahifa", Icon: Home },
-  { name: "categories", label: "Do'kon", Icon: LayoutGrid },
-  { name: "search", label: "Qidiruv", Icon: Search },
+  { name: "home", label: "Do'kon", Icon: Home },
   { name: "cart", label: "Savat", Icon: ShoppingBag },
+  { name: "orders", label: "Buyurtma", Icon: PackageCheck },
   { name: "profile", label: "Profil", Icon: User },
 ];
 
@@ -18,8 +17,13 @@ export function BottomNav() {
   const [bump] = useBumpOnChange(cartCount);
 
   const isTabActive = (name: Screen["name"]) => {
-    if (name === "categories") {
-      return screen.name === "categories" || screen.name === "product";
+    if (name === "home") {
+      return (
+        screen.name === "home" ||
+        screen.name === "categories" ||
+        screen.name === "search" ||
+        screen.name === "product"
+      );
     }
 
     if (name === "cart") {
@@ -41,7 +45,7 @@ export function BottomNav() {
 
   return (
     <nav className="absolute bottom-0 inset-x-0 bg-surface/95 backdrop-blur-xl border-t border-border/60 shadow-nav">
-      <div className="grid grid-cols-5 px-2 pt-2 pb-[calc(12px+env(safe-area-inset-bottom))]">
+      <div className="grid grid-cols-4 px-2 pt-2 pb-[calc(12px+env(safe-area-inset-bottom))]">
         {tabs.map(({ name, label, Icon }) => {
           const active = isTabActive(name);
           const isCart = name === "cart";
@@ -64,7 +68,7 @@ export function BottomNav() {
                   className={cn("w-[22px] h-[22px]", bump && isCart && "animate-bump")}
                   strokeWidth={active ? 2.5 : 2}
                   fill={
-                    active && (name === "home" || name === "cart" || name === "profile")
+                    active && (name === "home" || name === "cart" || name === "profile" || name === "orders")
                       ? "currentColor"
                       : "none"
                   }

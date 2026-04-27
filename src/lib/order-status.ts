@@ -1,4 +1,4 @@
-import type { OrderStatus, PaymentMethod, PaymentStatus } from "../types/app-data.js";
+import type { DeliverySlot, OrderStatus, PaymentMethod, PaymentStatus } from "../types/app-data.js";
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Kutilmoqda",
@@ -25,6 +25,12 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   "refund-pending": "Qaytarish kutilmoqda",
   refunded: "Qaytarildi",
   cancelled: "Bekor qilindi",
+};
+
+export const DELIVERY_SLOT_LABELS: Record<DeliverySlot, string> = {
+  today: "Bugun",
+  tomorrow: "Ertaga",
+  pickup: "Olib ketish",
 };
 
 export function isOnlinePayment(method: PaymentMethod) {

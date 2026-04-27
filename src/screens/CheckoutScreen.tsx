@@ -1,24 +1,31 @@
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
+  Check,
   Copy,
   CreditCard,
+  ImagePlus,
   MapPinned,
   Phone,
   Store,
+  Truck,
   User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/app/EmptyState";
 import { formatCurrency } from "@/lib/format";
 import {
+  DELIVERY_SLOT_LABELS,
   PAYMENT_METHOD_LABELS,
   isOnlinePayment,
 } from "@/lib/order-status";
 import { useApp } from "@/store/useApp";
+import type { DeliverySlot, PaymentMethod } from "@/types/app-data";
 
-const PAYMENT_OPTIONS = ["humo", "uzcard", "click", "payme", "paynet", "cash"] as const;
+const PAYMENT_OPTIONS: PaymentMethod[] = ["click", "payme", "cash"];
 const P2P_PAYMENT_CARD = "9860350140942508";
+const DELIVERY_OPTIONS: DeliverySlot[] = ["today", "tomorrow"];
 
 export function CheckoutScreen() {
   const cart = useApp((state) => state.cart);
@@ -33,8 +40,8 @@ export function CheckoutScreen() {
   const navigate = useApp((state) => state.navigate);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-
   const pricing = getCartPricing();
+
   const activePickupPoint = useMemo(
     () => pickupPoints.find((point) => point.id === checkout.pickupPointId),
     [checkout.pickupPointId, pickupPoints],
@@ -70,7 +77,34 @@ export function CheckoutScreen() {
       return;
     }
 
-    toast.success("Manzil xarita bo'yicha yangilandi.");
+    toast.success("Manzil yangilandi.");
+  };
+
+  const handleReceipt = async (file?: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    if (file.size > 1.5 * 1024 * 1024) {
+      toast.error("Chek rasmi 1.5 MB dan kichik bo'lishi kerak.");
+      return;
+    }
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Rasm o'qilmadi."));
+      reader.readAsDataURL(file);
+    });
+
+    updateCheckout({
+      paymentReceipt: {
+        fileName: file.name,
+        dataUrl,
+        uploadedAt: new Date().toISOString(),
+      },
+    });
+    toast.success("Chek rasmi biriktirildi.");
   };
 
   const handlePlaceOrder = async () => {
@@ -87,112 +121,89 @@ export function CheckoutScreen() {
       return;
     }
 
-    toast.success(`Buyurtma ${result.order.id} yaratildi`, {
-      description:
-        isOnlinePayment(checkout.paymentMethod)
-          ? "P2P to'lov tekshiruvga yuborildi. Admin tasdig'idan keyin tayyorlash boshlanadi."
-          : "Buyurtma admin tasdig'iga yuborildi.",
-    });
+    toast.success(`Buyurtma ${result.order.id} yaratildi`);
   };
 
   return (
     <div className="animate-screen-in px-5 pt-3 pb-28">
       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
-        Rasmiylashtirish
+        Checkout
       </p>
-      <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-tight mt-0.5">
-        Yetkazib berish ma'lumotlari
+      <h1 className="mt-0.5 font-serif text-[26px] leading-tight font-semibold tracking-tight">
+        Buyurtmani yakunlash
       </h1>
-      <p className="text-sm text-muted-foreground mt-1">
-        Ism va telefon botdan olinadi, manzil esa xarita yoki tarqatish punkti orqali tanlanadi.
-      </p>
 
       <div className="mt-5 space-y-3">
-        <Field label="Mijoz" icon={<User className="w-4 h-4" strokeWidth={2.25} />}>
-          <input
-            value={checkout.name}
-            onChange={(event) => updateCheckout({ name: event.target.value })}
-            className="w-full bg-transparent outline-none text-sm"
-            placeholder="Telegramdagi ism"
-          />
+        <Field label="Kontakt" icon={<User className="h-4 w-4" strokeWidth={2.25} />}>
+          <div className="grid gap-2">
+            <input
+              value={checkout.name}
+              onChange={(event) => updateCheckout({ name: event.target.value })}
+              className="h-10 rounded-xl bg-paper px-3 text-sm outline-none"
+              placeholder="Ism"
+            />
+            <div className="flex items-center gap-2 rounded-xl bg-paper px-3">
+              <Phone className="h-4 w-4 text-muted-foreground" strokeWidth={2.25} />
+              <input
+                value={checkout.phone}
+                onChange={(event) => updateCheckout({ phone: event.target.value })}
+                className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
+                placeholder="+998 90 123 45 67"
+              />
+            </div>
+          </div>
         </Field>
 
-        <Field label="Telefon" icon={<Phone className="w-4 h-4" strokeWidth={2.25} />}>
-          <input
-            value={checkout.phone}
-            onChange={(event) => updateCheckout({ phone: event.target.value })}
-            className="w-full bg-transparent outline-none text-sm"
-            placeholder="+998 90 123 45 67"
-          />
-        </Field>
-
-        <div className="rounded-2xl bg-surface p-4 shadow-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Yetkazish usuli
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+        <Field label="Yetkazish" icon={<Truck className="h-4 w-4" strokeWidth={2.25} />}>
+          <div className="grid grid-cols-2 gap-2">
             <SelectableCard
               selected={checkout.fulfillmentType === "delivery"}
               title="Yetkazib berish"
-              body="Xarita bo'yicha manzil belgilanadi"
+              body="Kuryer manzilga olib boradi"
               onClick={() => setFulfillmentType("delivery")}
             />
             <SelectableCard
               selected={checkout.fulfillmentType === "pickup"}
               title="Tarqatish punkti"
-              body="Do'kondan o'zi olib ketish"
+              body="O'zingiz olib ketasiz"
               onClick={() => setFulfillmentType("pickup")}
             />
           </div>
-        </div>
 
-        {checkout.fulfillmentType === "delivery" ? (
-          <div className="rounded-2xl bg-surface p-4 shadow-card">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-2">
-              <MapPinned className="w-4 h-4" strokeWidth={2.25} />
-              Yetkazib berish manzili
-            </p>
-            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-              Joriy joylashuvni aniqlang yoki real manzilni yozing. Xarita koordinatalari buyurtmaga birga yuboriladi.
-            </p>
-
-            <div className="mt-3 rounded-2xl bg-paper p-3">
-              <textarea
-                value={checkout.address}
-                onChange={(event) => updateCheckout({ address: event.target.value })}
-                className="w-full bg-transparent outline-none text-sm resize-none min-h-[88px]"
-                placeholder="Masalan: Yunusobod tumani, 14-kvartal, 23-uy"
-              />
+          {checkout.fulfillmentType === "delivery" ? (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {DELIVERY_OPTIONS.map((slot) => (
+                  <SelectableCard
+                    key={slot}
+                    selected={checkout.deliverySlot === slot}
+                    title={DELIVERY_SLOT_LABELS[slot]}
+                    body={slot === "today" ? "Imkon bo'lsa bugun" : "Ertangi yetkazish"}
+                    onClick={() => updateCheckout({ deliverySlot: slot })}
+                  />
+                ))}
+              </div>
+              <div className="rounded-2xl bg-paper p-3">
+                <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  <MapPinned className="h-4 w-4" strokeWidth={2.25} />
+                  Manzil
+                </p>
+                <textarea
+                  value={checkout.address}
+                  onChange={(event) => updateCheckout({ address: event.target.value })}
+                  className="min-h-[78px] w-full resize-none bg-transparent text-sm outline-none"
+                  placeholder="Masalan: Yunusobod tumani, 14-kvartal, 23-uy"
+                />
+                <button
+                  onClick={handleLocate}
+                  disabled={isLocating}
+                  className="tap mt-2 h-10 rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground active:scale-95 transition-transform disabled:opacity-60"
+                >
+                  {isLocating ? "Aniqlanmoqda..." : "Xaritadan aniqlash"}
+                </button>
+              </div>
             </div>
-
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={handleLocate}
-                disabled={isLocating}
-                className="tap flex-1 h-11 px-5 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-fab active:scale-95 transition-transform disabled:opacity-60 disabled:active:scale-100"
-              >
-                {isLocating ? "Aniqlanmoqda..." : "Xaritadan aniqlash"}
-              </button>
-              <button
-                onClick={() => navigate({ name: "addresses" })}
-                className="tap h-11 px-5 rounded-full bg-paper border border-border text-sm font-semibold active:scale-95 transition-transform"
-              >
-                Alohida oynada
-              </button>
-            </div>
-
-            {checkout.coordinates && (
-              <p className="mt-3 text-[11px] text-muted-foreground">
-                Koordinata: {checkout.coordinates.lat.toFixed(5)}, {checkout.coordinates.lon.toFixed(5)}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-2xl bg-surface p-4 shadow-card">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-2">
-              <Store className="w-4 h-4" strokeWidth={2.25} />
-              Tarqatish punktini tanlang
-            </p>
+          ) : (
             <div className="mt-3 grid gap-2">
               {pickupPoints.map((point) => (
                 <SelectableCard
@@ -203,49 +214,45 @@ export function CheckoutScreen() {
                   onClick={() => selectPickupPoint(point.id)}
                 />
               ))}
+              {activePickupPoint && (
+                <p className="text-[11px] text-muted-foreground">
+                  Mo'ljal: {activePickupPoint.landmark}
+                </p>
+              )}
             </div>
-            {activePickupPoint && (
-              <p className="mt-3 text-[11px] text-muted-foreground">
-                Mo'ljal: {activePickupPoint.landmark}
-              </p>
-            )}
-          </div>
-        )}
+          )}
+        </Field>
 
-        <div className="rounded-2xl bg-surface p-4 shadow-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-2">
-            <CreditCard className="w-4 h-4" strokeWidth={2.25} />
-            To'lov turi
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+        <Field label="To'lov" icon={<CreditCard className="h-4 w-4" strokeWidth={2.25} />}>
+          <div className="grid grid-cols-3 gap-2">
             {PAYMENT_OPTIONS.map((method) => (
-              <SelectableCard
+              <button
                 key={method}
-                selected={checkout.paymentMethod === method}
-                title={PAYMENT_METHOD_LABELS[method]}
-                body={
-                  isOnlinePayment(method)
-                    ? "Tanlagan ilovangizdan shu kartaga P2P o'tkazing"
-                    : "Buyurtma kelganda yoki terminal orqali"
-                }
                 onClick={() =>
                   updateCheckout({
                     paymentMethod: method,
                     paymentReference: isOnlinePayment(method) ? checkout.paymentReference : "",
+                    paymentReceipt: isOnlinePayment(method) ? checkout.paymentReceipt : undefined,
                   })
                 }
-              />
+                className={`tap rounded-2xl border p-3 text-left active:scale-[0.99] transition-transform ${
+                  checkout.paymentMethod === method
+                    ? "border-primary bg-primary-soft/70"
+                    : "border-border bg-paper"
+                }`}
+              >
+                <p className="text-xs font-bold">{PAYMENT_METHOD_LABELS[method]}</p>
+              </button>
             ))}
           </div>
 
           {isOnlinePayment(checkout.paymentMethod) && (
-            <div className="mt-4 rounded-2xl bg-paper p-4">
-              <div className="flex items-start justify-between gap-3">
+            <div className="mt-3 rounded-2xl bg-paper p-3">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">P2P karta raqami</p>
-                  <p className="mt-1 font-mono text-base tracking-[0.12em]">{P2P_PAYMENT_CARD}</p>
-                  <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                    Qaysi tizimni tanlasangiz, o'sha ilova orqali shu kartaga pul o'tkazing. Admin tranzaksiyani tekshirganidan keyin buyurtma tasdiqlanadi.
+                  <p className="text-xs font-bold text-muted-foreground">P2P karta</p>
+                  <p className="mt-1 font-mono text-sm font-bold tracking-[0.08em]">
+                    {P2P_PAYMENT_CARD}
                   </p>
                 </div>
                 <button
@@ -257,85 +264,74 @@ export function CheckoutScreen() {
                       toast.error("Nusxalab bo'lmadi.");
                     }
                   }}
-                  className="tap h-10 px-4 rounded-full bg-surface border border-border text-sm font-semibold active:scale-95 transition-transform inline-flex items-center gap-2"
+                  className="tap grid h-9 w-9 place-items-center rounded-full bg-surface active:scale-95 transition-transform"
+                  aria-label="Karta raqamini nusxalash"
                 >
-                  <Copy className="w-4 h-4" strokeWidth={2.2} />
-                  Nusxalash
+                  <Copy className="h-4 w-4" strokeWidth={2.2} />
                 </button>
               </div>
 
-              <div className="mt-4 rounded-2xl bg-surface px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Tranzaksiya izohi
-                </p>
+              <input
+                value={checkout.paymentReference}
+                onChange={(event) => updateCheckout({ paymentReference: event.target.value })}
+                className="mt-3 h-10 w-full rounded-xl bg-surface px-3 text-sm outline-none"
+                placeholder="Chek ID yoki oxirgi 4 raqam"
+              />
+
+              <label className="tap mt-3 flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface text-sm font-bold active:scale-[0.99] transition-transform">
+                {checkout.paymentReceipt ? (
+                  <Check className="h-4 w-4 text-primary" strokeWidth={2.5} />
+                ) : (
+                  <ImagePlus className="h-4 w-4 text-primary" strokeWidth={2.25} />
+                )}
+                {checkout.paymentReceipt?.fileName ?? "Chek rasmini yuklash"}
                 <input
-                  value={checkout.paymentReference}
-                  onChange={(event) => updateCheckout({ paymentReference: event.target.value })}
-                  className="mt-2 w-full bg-transparent outline-none text-sm"
-                  placeholder="Chek ID, oxirgi 4 raqam yoki izoh"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => void handleReceipt(event.target.files?.[0])}
                 />
-              </div>
+              </label>
             </div>
           )}
-        </div>
+        </Field>
 
-        <div className="rounded-2xl bg-surface p-4 shadow-card">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Buyurtma izohi
-          </p>
+        <Field label="Izoh" icon={<Store className="h-4 w-4" strokeWidth={2.25} />}>
           <textarea
             value={checkout.notes}
             onChange={(event) => updateCheckout({ notes: event.target.value })}
-            placeholder="Qo'shimcha eslatma, domofon kodi yoki katta buyurtma tafsiloti"
-            className="w-full bg-transparent outline-none text-sm resize-none min-h-[88px] mt-2"
+            placeholder="Majburiy emas"
+            className="min-h-[66px] w-full resize-none rounded-xl bg-paper px-3 py-2 text-sm outline-none"
           />
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Katta buyurtmalar uchun +998990197548 raqamiga qo'ng'iroq qiling.
-          </p>
-        </div>
+        </Field>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-surface p-4 shadow-card">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground mb-3">
-          Buyurtma tarkibi
+      <div className="mt-5 rounded-2xl bg-surface p-4 shadow-card">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          Jami
         </p>
-        <div className="space-y-2.5">
-          {cart.map((line) => (
-            <div
-              key={`${line.product.id}-${line.weightOption ?? line.product.weight}`}
-              className="flex items-center justify-between gap-3"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-semibold line-clamp-1">{line.product.name}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {line.quantity} x {line.weightOption ?? line.product.weight}
-                </p>
-              </div>
-              <span className="text-sm font-semibold tabular-nums">
-                {formatCurrency(line.product.price * line.quantity)}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-dashed border-border my-4" />
-        <div className="space-y-2 text-sm">
-          <SummaryRow label="Oraliq summa" value={formatCurrency(pricing.subtotal)} />
+        <div className="mt-3 space-y-2 text-sm">
+          <SummaryRow label="Mahsulotlar" value={formatCurrency(pricing.subtotal)} />
+          {pricing.promoDiscount > 0 && (
+            <SummaryRow label={`Promo ${pricing.activePromoCode}`} value={`-${formatCurrency(pricing.promoDiscount)}`} />
+          )}
           <SummaryRow
-            label={checkout.fulfillmentType === "pickup" ? "Olib ketish" : "Yetkazib berish"}
+            label={checkout.fulfillmentType === "pickup" ? "Olib ketish" : "Yetkazish"}
             value={pricing.delivery === 0 ? "Bepul" : formatCurrency(pricing.delivery)}
           />
-          <SummaryRow label="Jami" value={formatCurrency(pricing.total)} strong />
+          <div className="border-t border-dashed border-border" />
+          <SummaryRow label="To'lanadi" value={formatCurrency(pricing.total)} strong />
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-10 mt-4 px-4 -mx-4 pb-3 pt-4 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none">
+      <div className="sticky bottom-0 z-10 mt-4 -mx-4 bg-gradient-to-t from-background via-background/95 to-transparent px-4 pb-3 pt-4 pointer-events-none">
         <button
           onClick={handlePlaceOrder}
           disabled={isSubmitting}
-          className="tap pointer-events-auto w-full h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-[15px] shadow-fab active:scale-[0.98] transition-transform flex items-center justify-between px-5 disabled:opacity-60 disabled:active:scale-100"
+          className="tap pointer-events-auto flex h-14 w-full items-center justify-between rounded-2xl bg-primary px-5 text-[15px] font-bold text-primary-foreground shadow-fab active:scale-[0.98] transition-transform disabled:opacity-60"
         >
           <span>{isSubmitting ? "Yuborilmoqda..." : "Buyurtmani yuborish"}</span>
-          <span className="tabular-nums">{formatCurrency(pricing.total)}</span>
+          <span>{formatCurrency(pricing.total)}</span>
         </button>
       </div>
     </div>
@@ -348,17 +344,17 @@ function Field({
   children,
 }: {
   label: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
+  icon: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl bg-surface p-4 shadow-card">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-2">
+    <section className="rounded-2xl bg-surface p-4 shadow-card">
+      <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
         {icon}
         {label}
       </p>
-      <div className="mt-2">{children}</div>
-    </div>
+      {children}
+    </section>
   );
 }
 
@@ -377,11 +373,11 @@ function SelectableCard({
     <button
       onClick={onClick}
       className={`tap rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${
-        selected ? "border-primary bg-primary-soft/60" : "border-border bg-paper"
+        selected ? "border-primary bg-primary-soft/70" : "border-border bg-paper"
       }`}
     >
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{body}</p>
+      <p className="text-sm font-bold">{title}</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{body}</p>
     </button>
   );
 }
@@ -398,13 +394,7 @@ function SummaryRow({
   return (
     <div className="flex items-center justify-between gap-3">
       <span className={strong ? "font-bold" : "text-muted-foreground"}>{label}</span>
-      <span
-        className={
-          strong
-            ? "font-bold tabular-nums text-right"
-            : "font-semibold tabular-nums text-right"
-        }
-      >
+      <span className={strong ? "font-bold tabular-nums" : "font-semibold tabular-nums"}>
         {value}
       </span>
     </div>

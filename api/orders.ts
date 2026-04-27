@@ -5,10 +5,12 @@ import {
 } from "../src/lib/order-status.js";
 import type {
   CustomerOrder,
+  DeliverySlot,
   OrderLine,
   OrderStatus,
   OrderStatusEvent,
   PaymentMethod,
+  PaymentReceipt,
   PaymentStatus,
 } from "../src/types/app-data.js";
 import {
@@ -41,6 +43,7 @@ interface ApiRequest {
     notes?: string;
     paymentMethod?: PaymentMethod;
     paymentReference?: string;
+    paymentReceipt?: PaymentReceipt;
     telegramUserId?: number;
     username?: string;
     firstName?: string;
@@ -53,6 +56,7 @@ interface ApiRequest {
       coordinates?: { lat: number; lon: number };
       pickupPointId?: string;
       fulfillmentType?: "delivery" | "pickup";
+      deliverySlot?: DeliverySlot;
     };
     items?: Array<{
       productId?: string;
@@ -72,6 +76,13 @@ interface ApiResponse {
 const FREE_SHIPPING_THRESHOLD = 900000;
 const DELIVERY_FEE = 85000;
 const P2P_PAYMENT_CARD = "9860350140942508";
+const SAVE10_THRESHOLD = 700000;
+
+const DELIVERY_SLOT_LABELS: Record<DeliverySlot, string> = {
+  today: "Bugun",
+  tomorrow: "Ertaga",
+  pickup: "Olib ketish",
+};
 
 function getRecipients() {
   return [...new Set([...getAdminChatIds(), getChannelId()].filter(Boolean))];
@@ -79,6 +90,19 @@ function getRecipients() {
 
 function formatMoney(value: number) {
   return `${new Intl.NumberFormat("uz-UZ").format(Math.round(value))} UZS`;
+}
+
+function getPromoDiscount(code: string | undefined, subtotal: number) {
+  const normalized = code?.trim().toUpperCase() ?? "";
+  if (normalized === "SAVE10" && subtotal >= SAVE10_THRESHOLD) {
+    return { code: normalized, discount: Number((subtotal * 0.1).toFixed(2)) };
+  }
+
+  if (normalized === "FREESHIP") {
+    return { code: normalized, discount: 0 };
+  }
+
+  return { code: "", discount: 0 };
 }
 
 function getRequestedKg(line: Pick<OrderLine, "quantity" | "weightOption" | "product">) {
@@ -136,10 +160,12 @@ function summarizeOrder(order: CustomerOrder) {
     order.customer.fulfillmentType === "pickup"
       ? `Tarqatish punkti: ${order.customer.pickupPointId ?? "-"}`
       : `Manzil: ${order.customer.address ?? "-"}`,
+    order.customer.deliverySlot ? `Vaqt: ${DELIVERY_SLOT_LABELS[order.customer.deliverySlot]}` : "",
     `Holat: ${ORDER_STATUS_LABELS[order.status]}`,
     `To'lov turi: ${order.paymentMethod.toUpperCase()}`,
     `To'lov holati: ${order.paymentStatus}`,
     order.paymentReference ? `Tranzaksiya: ${order.paymentReference}` : "",
+    order.paymentReceipt ? `Chek: ${order.paymentReceipt.fileName} yuklangan` : "",
     isOnlinePayment(order.paymentMethod) ? `P2P karta: ${order.paymentCardNumber ?? P2P_PAYMENT_CARD}` : "",
     "",
     "Mahsulotlar:",
@@ -152,6 +178,12 @@ function summarizeOrder(order: CustomerOrder) {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function getLowStockLines(products: CustomerOrder["items"][number]["product"][]) {
+  return products
+    .filter((product) => product.enabled !== false && product.stockKg <= 3)
+    .map((product) => `${product.name}: ${product.stockKg} kg`);
 }
 
 function buildOrderNotification(order: CustomerOrder, title: string, body: string) {
@@ -231,10 +263,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           (sum, item) => sum + ((item.product.oldPrice ?? item.product.price) - item.product.price) * item.quantity,
           0,
         );
+        const promo = getPromoDiscount(payload.promoCode, subtotal);
         const delivery =
           payload.customer?.fulfillmentType === "pickup"
             ? 0
-            : subtotal >= FREE_SHIPPING_THRESHOLD
+            : subtotal >= FREE_SHIPPING_THRESHOLD || payload.promoCode?.trim().toUpperCase() === "FREESHIP"
               ? 0
               : DELIVERY_FEE;
         const paymentStatus = getInitialPaymentStatus(payload.paymentMethod);
@@ -247,10 +280,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           items,
           subtotal,
           savings,
-          promoDiscount: 0,
+          promoDiscount: promo.discount,
           delivery,
-          total: subtotal + delivery,
-          promoCode: payload.promoCode?.trim() ?? "",
+          total: Math.max(0, subtotal - promo.discount + delivery),
+          promoCode: promo.code,
           customer: {
             telegramUserId: payload.telegramUserId,
             name: payload.customer?.name?.trim() || "Mijoz",
@@ -261,12 +294,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             coordinates: payload.customer?.coordinates,
             pickupPointId: payload.customer?.pickupPointId?.trim(),
             fulfillmentType: payload.customer?.fulfillmentType ?? "delivery",
+            deliverySlot:
+              payload.customer?.fulfillmentType === "pickup"
+                ? "pickup"
+                : payload.customer?.deliverySlot === "tomorrow"
+                  ? "tomorrow"
+                  : "today",
             notes: payload.notes?.trim(),
           },
           paymentMethod: payload.paymentMethod,
           paymentStatus,
           paymentCardNumber: isOnlinePayment(payload.paymentMethod) ? P2P_PAYMENT_CARD : undefined,
           paymentReference: payload.paymentReference?.trim(),
+          paymentReceipt: payload.paymentReceipt?.dataUrl ? payload.paymentReceipt : undefined,
           status,
           statusHistory: [],
         };
@@ -331,6 +371,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           }),
         ),
       );
+
+      const lowStockLines = getLowStockLines(nextState.products);
+      if (lowStockLines.length > 0) {
+        await Promise.all(
+          recipients.map((chatId) =>
+            sendMessage(chatId, `Kam qolgan mahsulotlar\n\n${lowStockLines.slice(0, 8).join("\n")}`),
+          ),
+        );
+      }
 
       if (order.customer.telegramUserId) {
         await sendMessage(

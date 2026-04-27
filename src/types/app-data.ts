@@ -25,6 +25,8 @@ export type PaymentStatus =
   | "refunded"
   | "cancelled";
 
+export type DeliverySlot = "today" | "tomorrow" | "pickup";
+
 export type OrderStatus =
   | "pending"
   | "confirmed"
@@ -94,7 +96,21 @@ export interface OrderCustomerSnapshot {
   coordinates?: GeoPoint;
   pickupPointId?: string;
   fulfillmentType: FulfillmentType;
+  deliverySlot?: DeliverySlot;
   notes?: string;
+}
+
+export interface PaymentReceipt {
+  fileName: string;
+  dataUrl: string;
+  uploadedAt: string;
+}
+
+export interface OrderSupportRequest {
+  id: string;
+  message: string;
+  createdAt: string;
+  status: "open" | "closed";
 }
 
 export interface OrderStatusEvent {
@@ -121,11 +137,14 @@ export interface CustomerOrder {
   paymentStatus: PaymentStatus;
   paymentCardNumber?: string;
   paymentReference?: string;
+  paymentReceipt?: PaymentReceipt;
   paymentConfirmedAt?: string;
+  etaWindow?: string;
   status: OrderStatus;
   statusHistory: OrderStatusEvent[];
   cancellationReason?: string;
   reviewIds?: string[];
+  supportRequests?: OrderSupportRequest[];
 }
 
 export interface BroadcastMessage {

@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { ShieldCheck, ShoppingBag, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ShieldCheck, ShoppingBag, Ticket, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/app/EmptyState";
 import { FreeShipBar } from "@/components/app/FreeShipBar";
@@ -18,6 +18,10 @@ export function CartScreen() {
   const navigate = useApp((state) => state.navigate);
   const getCartPricing = useApp((state) => state.cartPricing);
   const products = useApp((state) => state.products);
+  const promoCode = useApp((state) => state.promoCode);
+  const applyPromoCode = useApp((state) => state.applyPromoCode);
+  const clearPromoCode = useApp((state) => state.clearPromoCode);
+  const [promoDraft, setPromoDraft] = useState(promoCode);
   const pricing = getCartPricing();
 
   const isEmpty = cart.length === 0;
@@ -66,6 +70,16 @@ export function CartScreen() {
     );
   }
 
+  const handlePromo = () => {
+    const result = applyPromoCode(promoDraft);
+    if (result.ok) {
+      toast.success(result.message);
+      return;
+    }
+
+    toast.error(result.message);
+  };
+
   return (
     <div className="animate-screen-in pb-28">
       <div className="px-5 pt-3 pb-2 flex items-end justify-between">
@@ -84,6 +98,37 @@ export function CartScreen() {
 
       <div className="px-5 mt-3">
         <FreeShipBar subtotal={pricing.subtotal} />
+      </div>
+
+      <div className="mx-5 mt-3 rounded-2xl bg-surface p-3 shadow-card">
+        <div className="flex items-center gap-2">
+          <Ticket className="h-4 w-4 text-primary" strokeWidth={2.4} />
+          <input
+            value={promoDraft}
+            onChange={(event) => setPromoDraft(event.target.value)}
+            placeholder="Promo kod: SAVE10 yoki FREESHIP"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+          />
+          {pricing.activePromoCode ? (
+            <button
+              onClick={() => {
+                clearPromoCode();
+                setPromoDraft("");
+              }}
+              className="tap grid h-8 w-8 place-items-center rounded-full bg-paper active:scale-95 transition-transform"
+              aria-label="Promo kodni olib tashlash"
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+            </button>
+          ) : (
+            <button
+              onClick={handlePromo}
+              className="tap h-8 rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground active:scale-95 transition-transform"
+            >
+              Qo'llash
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="px-5 mt-4 space-y-2.5">
@@ -195,7 +240,7 @@ export function CartScreen() {
 
         <div className="flex items-center gap-1.5 pt-2 text-[11px] text-muted-foreground">
           <ShieldCheck className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-          Promo kodlar checkout oqimida yashirin qo'llanadi, savatda ko'rinmaydi
+          Promo kodlar savat va checkout jami summasiga qo'llanadi
         </div>
       </div>
 

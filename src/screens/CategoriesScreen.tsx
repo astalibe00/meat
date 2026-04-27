@@ -8,10 +8,8 @@ import { useApp, type CatalogSort } from "@/store/useApp";
 
 const SORTS: { id: CatalogSort; label: string }[] = [
   { id: "popular", label: "Mashhur" },
-  { id: "price-asc", label: "Arzon narx" },
-  { id: "price-desc", label: "Qimmat narx" },
-  { id: "freshest", label: "Eng yangi" },
-  { id: "value", label: "Qulay narx" },
+  { id: "price-asc", label: "Arzon" },
+  { id: "value", label: "Qulay" },
 ];
 
 export function CategoriesScreen() {
@@ -120,7 +118,7 @@ export function CategoriesScreen() {
         <div className="flex gap-2 px-5 pb-3 items-center">
           <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground pr-1">
             <SlidersHorizontal className="w-3 h-3" strokeWidth={2.5} />
-            Saralash
+            Tartib
           </span>
           {SORTS.map((option) => (
             <FilterChip

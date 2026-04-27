@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  BadgeCheck,
+  ChevronDown,
   ChevronLeft,
   Flame,
   Heart,
@@ -41,6 +41,7 @@ export function ProductDetailScreen() {
   const isFavorite = favorites.includes(productId);
   const [quantity, setQuantity] = useState(1);
   const [weight, setWeight] = useState<string | undefined>(product?.weightOptions?.[0] ?? product?.weight);
+  const [showDetails, setShowDetails] = useState(false);
   const related = useMemo(
     () =>
       products
@@ -192,20 +193,6 @@ export function ProductDetailScreen() {
           </div>
         </div>
 
-        <div className="mt-5 p-4 rounded-2xl bg-foreground text-background">
-          <div className="flex items-center gap-3">
-            <span className="w-9 h-9 rounded-full bg-primary text-primary-foreground grid place-items-center shrink-0">
-              <BadgeCheck className="w-5 h-5" strokeWidth={2.5} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-bold">100% halol sertifikatlangan</p>
-              <p className="text-[11px] text-background/70 leading-tight mt-0.5">
-                Halol sertifikatli, buyurtma tushishi bilan tayyorlanadi va nazorat ostida jo'natiladi.
-              </p>
-            </div>
-          </div>
-        </div>
-
         {product.weightOptions && product.weightOptions.length > 0 && (
           <div className="mt-5">
             <div className="flex items-center justify-between mb-2.5">
@@ -234,19 +221,6 @@ export function ProductDetailScreen() {
             </div>
           </div>
         )}
-
-        <div className="mt-6">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-2">
-            Mahsulot haqida
-          </p>
-          <p className="text-[14px] text-foreground/85 leading-relaxed">{product.description}</p>
-        </div>
-
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <TrustBullet Icon={Flame} label="Tayyorlash" sub={product.prepTime ?? "Yangi"} />
-          <TrustBullet Icon={Truck} label="Qoldiq" sub={`${product.stockKg} kg mavjud`} />
-          <TrustBullet Icon={Shield} label="Sifat" sub="Ishonchli kafolat" />
-        </div>
 
         <div className="mt-6 rounded-2xl bg-paper p-4">
           <div className="flex items-center justify-between gap-3">
@@ -282,47 +256,72 @@ export function ProductDetailScreen() {
           </button>
         </div>
 
-        <div className="mt-7">
-          <SectionHeader eyebrow="Mijozlar fikri" title="Sharhlar" inline />
-          {reviews.length > 0 ? (
-            <div className="mt-3 space-y-3">
-              {reviews.slice(0, 4).map((review) => (
-                <div key={review.id} className="rounded-2xl bg-paper p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold">{review.customerName}</p>
-                      <p className="text-[11px] text-muted-foreground">{formatDate(review.createdAt)}</p>
-                    </div>
-                    <div className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-[11px] font-semibold text-primary">
-                      <Star className="w-3.5 h-3.5 fill-current" strokeWidth={2.2} />
-                      {review.rating}
-                    </div>
-                  </div>
-                  {review.comment && (
-                    <p className="mt-2 text-sm leading-relaxed text-foreground/85">{review.comment}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-3 rounded-2xl bg-paper p-4 text-sm text-muted-foreground flex items-center gap-3">
-              <MessageSquareQuote className="w-4 h-4 text-primary shrink-0" strokeWidth={2.4} />
-              Sharhlar buyurtma yakunlangach paydo bo'ladi.
-            </div>
-          )}
-        </div>
+        <button
+          onClick={() => setShowDetails((value) => !value)}
+          className="tap mt-4 flex w-full items-center justify-between rounded-2xl bg-paper px-4 py-3 text-left text-sm font-bold active:scale-[0.99] transition-transform"
+        >
+          Mahsulot haqida
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${showDetails ? "rotate-180" : ""}`}
+            strokeWidth={2.5}
+          />
+        </button>
 
-        {related.length > 0 && (
-          <div className="mt-7 -mx-5">
-            <SectionHeader eyebrow="Sizga yoqishi mumkin" title="Birga oling" />
-            <div className="overflow-x-auto no-scrollbar">
-              <div className="flex gap-3 px-5 pb-1">
-                {related.map((item) => (
-                  <ProductCard key={item.id} product={item} variant="horizontal" />
-                ))}
-              </div>
+        {showDetails && (
+          <>
+            <div className="mt-4">
+              <p className="text-[14px] text-foreground/85 leading-relaxed">{product.description}</p>
             </div>
-          </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <TrustBullet Icon={Flame} label="Tayyorlash" sub={product.prepTime ?? "Yangi"} />
+              <TrustBullet Icon={Truck} label="Qoldiq" sub={`${product.stockKg} kg mavjud`} />
+              <TrustBullet Icon={Shield} label="Sifat" sub="Ishonchli kafolat" />
+            </div>
+
+            <div className="mt-7">
+              <SectionHeader eyebrow="Mijozlar fikri" title="Sharhlar" inline />
+              {reviews.length > 0 ? (
+                <div className="mt-3 space-y-3">
+                  {reviews.slice(0, 4).map((review) => (
+                    <div key={review.id} className="rounded-2xl bg-paper p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">{review.customerName}</p>
+                          <p className="text-[11px] text-muted-foreground">{formatDate(review.createdAt)}</p>
+                        </div>
+                        <div className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-[11px] font-semibold text-primary">
+                          <Star className="w-3.5 h-3.5 fill-current" strokeWidth={2.2} />
+                          {review.rating}
+                        </div>
+                      </div>
+                      {review.comment && (
+                        <p className="mt-2 text-sm leading-relaxed text-foreground/85">{review.comment}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-2xl bg-paper p-4 text-sm text-muted-foreground flex items-center gap-3">
+                  <MessageSquareQuote className="w-4 h-4 text-primary shrink-0" strokeWidth={2.4} />
+                  Sharhlar buyurtma yakunlangach paydo bo'ladi.
+                </div>
+              )}
+            </div>
+
+            {related.length > 0 && (
+              <div className="mt-7 -mx-5">
+                <SectionHeader eyebrow="Sizga yoqishi mumkin" title="Birga oling" />
+                <div className="overflow-x-auto no-scrollbar">
+                  <div className="flex gap-3 px-5 pb-1">
+                    {related.map((item) => (
+                      <ProductCard key={item.id} product={item} variant="horizontal" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         <div className="h-6" />
